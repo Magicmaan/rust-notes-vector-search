@@ -1,0 +1,96 @@
+#editor-grid-container {
+	isolation: isolate;
+	--grid-dot-color: color-mix(
+		in oklch,
+		var(--canvas-background-detail),
+		white 22%
+	);
+	--grid-dot-core-size: 4px;
+	--grid-dot-fade-size: 2px;
+	--grid-dot-opacity-min: 0.2;
+	--grid-dot-opacity-max: 0.62;
+	--grid-dot-opacity-zoom-base: 0.25;
+	--grid-dot-opacity-zoom-multiplier: 0.68;
+	--grid-dot-saturate: 1.15;
+	--grid-vignette-opacity: 0.72;
+	--grid-vignette-inner-stop: 28%;
+	--grid-vignette-edge-color: color-mix(
+		in oklch,
+		var(--background-500),
+		black 10%
+	);
+}
+
+#editor-grid-container::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background-image: radial-gradient(
+		circle at 0 0,
+		var(--grid-dot-color) var(--grid-dot-core-size),
+		transparent var(--grid-dot-fade-size)
+	);
+	background-repeat: repeat;
+	background-size: var(--grid-space-x, 16px) var(--grid-space-y, 16px);
+	background-position: var(--grid-phase-x, 0px) var(--grid-phase-y, 0px);
+	opacity: clamp(
+		var(--grid-dot-opacity-min),
+		calc(
+			(var(--grid-zoom, 1) - var(--grid-dot-opacity-zoom-base)) *
+			var(--grid-dot-opacity-zoom-multiplier) +
+			var(--grid-dot-opacity-min)
+		),
+		var(--grid-dot-opacity-max)
+	);
+	filter: saturate(var(--grid-dot-saturate));
+	pointer-events: none;
+	z-index: 0;
+}
+
+#editor-grid-container::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: radial-gradient(
+		circle at center,
+		transparent var(--grid-vignette-inner-stop),
+		var(--grid-vignette-edge-color) 100%
+	);
+	opacity: var(--grid-vignette-opacity);
+	pointer-events: none;
+	z-index: 0;
+}
+
+.thoughtspace-editor-grid {
+	background:
+		radial-gradient(
+			circle at 15% -20%,
+			color-mix(in oklch, var(--accent-cool-400), transparent 80%) 0%,
+			transparent 34%
+		),
+		radial-gradient(
+			circle at 92% 120%,
+			color-mix(in oklch, var(--accent-cool-300), transparent 88%) 0%,
+			transparent 44%
+		),
+		color-mix(in oklch, var(--background-500), black 8%);
+}
+
+.ts-minimap {
+	background:
+		linear-gradient(
+			to right,
+			color-mix(in oklch, var(--foreground-muted), transparent 60%) 1px,
+			transparent 1px
+		)
+		0 0 / 48px 32px,
+		linear-gradient(
+			to bottom,
+			color-mix(in oklch, var(--foreground-muted), transparent 60%) 1px,
+			transparent 1px
+		)
+		0 0 / 48px 32px,
+		color-mix(in oklch, var(--background-500), black 15%);
+	box-shadow: inset 0 0 0 1px
+		color-mix(in oklch, var(--background-100), transparent 75%);
+}

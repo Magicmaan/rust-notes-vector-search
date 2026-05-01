@@ -1,0 +1,170 @@
+/** biome-ignore-all lint/complexity/noImportantStyles: <annoying> */
+@import "./globals.css";
+@import "./window.css";
+@import "./note.css";
+@import "./canvas-background.css";
+
+body {
+	font-family: system-ui, -apple-system, Arial, Helvetica, sans-serif;
+	font-size: 14px;
+	margin: 0;
+	overflow: hidden;
+}
+
+/*  */
+
+body,
+main,
+#app {
+	max-height: 100svh;
+	margin: 0;
+	line-height: 1.4;
+}
+
+html {
+	height: 100svh;
+	max-height: 100svh;
+	min-height: 100svh;
+}
+
+@layer base {
+	html {
+		@apply prose-base;
+	}
+	h1 {
+		@apply prose-2xl;
+	}
+
+	h2 {
+		@apply prose-xl;
+	}
+
+	h3 {
+		@apply prose-lg;
+	}
+
+	h4 {
+		@apply prose-base font-semibold;
+	}
+
+	p {
+		@apply prose-base;
+	}
+
+	p:not(:first-child) {
+		margin-top: 1.5rem;
+	}
+}
+
+.react-grid-item {
+	--drag-handle-size: 10px;
+	--drag-handle-offset: 0px;
+
+	&:hover:not(:has(.react-grid-item-content:hover)) {
+		.react-resizable-handle {
+			--drag-handle-size: 15px;
+			--drag-handle-offset: 7.5px;
+			@apply bg-primary-400/50;
+		}
+	}
+
+	.react-resizable-handle {
+		@apply bg-primary-400/25;
+		border-radius: 50px;
+		height: var(--drag-handle-size) !important;
+		margin-top: 0 !important;
+		margin-left: 0 !important;
+		width: auto !important;
+		aspect-ratio: 1 / 1 !important;
+		background-image: none !important;
+		&::after {
+			all: unset !important;
+			visibility: hidden !important;
+		}
+
+		transition: all 0.3s;
+	}
+
+	.react-resizable-handle-n {
+		transform: translateX(calc(var(--drag-handle-size) * -1))
+			translateY(calc(var(--drag-handle-offset) * -1)) !important;
+		aspect-ratio: 2 / 1 !important;
+	}
+	.react-resizable-handle-s {
+		transform: translateX(calc(var(--drag-handle-size) * -1))
+			translateY(var(--drag-handle-offset)) !important;
+		aspect-ratio: 2 / 1 !important;
+	}
+	.react-resizable-handle-e {
+		width: var(--drag-handle-size) !important;
+		height: auto !important;
+		transform: translateY(calc(var(--drag-handle-size) * -1))
+			translateX(var(--drag-handle-offset)) !important;
+		aspect-ratio: 1 / 2 !important;
+	}
+	.react-resizable-handle-w {
+		width: var(--drag-handle-size) !important;
+		height: auto !important;
+		transform: translateY(calc(var(--drag-handle-size) * -1))
+			translateX(calc(var(--drag-handle-offset) * -1)) !important;
+		aspect-ratio: 1 / 2 !important;
+	}
+	.react-resizable-handle-nw {
+		transform: translateX(calc(var(--drag-handle-offset) * -1))
+			translateY(calc(var(--drag-handle-offset) * -1)) !important;
+	}
+	.react-resizable-handle-ne {
+		transform: translateX(var(--drag-handle-offset))
+			translateY(calc(var(--drag-handle-offset) * -1)) !important;
+	}
+	.react-resizable-handle-sw {
+		transform: translateX(calc(var(--drag-handle-offset) * -1))
+			translateY(var(--drag-handle-offset)) !important;
+	}
+	.react-resizable-handle-se {
+		transform: translateX(var(--drag-handle-offset))
+			translateY(var(--drag-handle-offset)) !important;
+	}
+
+	/* 
+        
+        
+        
+        */
+}
+
+@keyframes bounce-fade-in {
+	0% {
+		opacity: 0;
+		transform: scale(0);
+	}
+	100% {
+		opacity: 1;
+		transform: scale(1);
+	}
+}
+
+@keyframes scale-bounce {
+	0% {
+		transform: scale(1);
+	}
+	25% {
+		transform: scale(1.05);
+	}
+	100% {
+		transform: scale(1);
+	}
+}
+
+@theme inline {
+	--animate-bounce-fade-in: bounce-fade-in 0.5s ease;
+	--animate-scale-bounce: scale-bounce 0.5s ease;
+}
+
+[data-slot="button"]:focus-visible,
+[data-slot="input"]:focus-visible,
+[data-slot="switch"]:focus-visible {
+	border-color: var(--accent-cool-400) !important;
+	box-shadow: 0 0 0 3px
+		color-mix(in oklch, var(--accent-cool-400), transparent 55%) !important;
+}

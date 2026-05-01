@@ -1,0 +1,28 @@
+{
+	"compilerOptions": {
+		"composite": true,
+		"target": "ES2022",
+		"lib": ["ES2022", "DOM", "DOM.Iterable"],
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"allowImportingTsExtensions": false,
+		"resolveJsonModule": true,
+		"isolatedModules": true,
+		// Was getting "Cannot use JSX unless the '--jsx' flag is provided" with react-jsx
+		"jsx": "react",
+		"strict": true,
+		"baseUrl": ".",
+		"ignoreDeprecations": "6.0",
+		"paths": {
+			"@/lib/*": ["./lib/*"],
+			"@/components/*": ["./app/components/*"],
+			"@/hooks/*": ["./app/hooks/*"],
+			"@/pages/*": ["./app/pages/*"],
+			"@/providers/*": ["./app/providers/*"],
+			"@/resources/*": ["./resources/*"],
+			"@/*": ["./app/*"]
+		}
+	},
+	"include": ["app/**/*", "lib/**/*", "resources/**/*"],
+	"exclude": ["lib/main/**/*", "lib/preload/**/*", "lib/conveyor/handlers/**/*"]
+}

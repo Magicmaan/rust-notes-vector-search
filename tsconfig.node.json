@@ -1,0 +1,25 @@
+{
+	"compilerOptions": {
+		"composite": true,
+		"target": "ES2022",
+		"lib": ["ES2022"],
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"resolveJsonModule": true,
+		"strict": true,
+		"types": ["node"],
+		"baseUrl": ".",
+		"ignoreDeprecations": "6.0",
+		"paths": {
+			"@/lib/*": ["./lib/*"],
+			"@/components/*": ["./app/components/*"],
+			"@/hooks/*": ["./app/hooks/*"],
+			"@/pages/*": ["./app/pages/*"],
+			"@/providers/*": ["./app/providers/*"],
+			"@/resources/*": ["./resources/*"],
+			"@/*": ["./app/*"]
+		}
+	},
+	"include": ["vite.config.ts", "lib/**/*", "resources/**/*", "app/**/*"],
+	"exclude": ["lib/main/**/*", "lib/preload/**/*", "lib/conveyor/handlers/**/*"]
+}

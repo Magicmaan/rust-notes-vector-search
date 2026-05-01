@@ -1,0 +1,135 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+@source "@/app";
+@source "@/lib";
+
+:root {
+	--black: #000;
+	--white: #fff;
+	/* ThoughtSpace-inspired dark palette */
+	--background-base: oklch(20% 0.02 252);
+
+	/* 100 is lightest, 500 is darkest. */
+	--background-100: color-mix(in oklch, var(--background-base), white 24%);
+	--background-200: color-mix(in oklch, var(--background-base), white 10%);
+	--background-300: var(--background-base);
+	--background-400: color-mix(in oklch, var(--background-base), black 12%);
+	--background-500: color-mix(in oklch, var(--background-base), black 34%);
+
+	--foreground-normal: oklch(92% 0.012 255);
+	--foreground-bold: color-mix(in oklch, var(--foreground-normal), white 9%);
+	--foreground-muted: color-mix(
+		in oklch,
+		var(--foreground-normal),
+		var(--background-300) 50%
+	);
+
+	--border: var(--background-200);
+	--border-light: var(--background-100);
+	--border-dark: var(--background-400);
+
+	--accent-cool-300: #7aa2ff;
+	--accent-cool-400: #5f87ff;
+	--accent-cool-500: #4b6fd1;
+
+	/* app specific colours, based off scheme */
+	--canvas-background: var(--background-500);
+	--canvas-background-detail: color-mix(
+		in oklch,
+		var(--canvas-background),
+		#5f87ff 14%
+	);
+
+	--note-default: var(--background-300);
+	--note-default-border: var(--border);
+	--note-default-border-radius: 0.75rem;
+	--note-default-hover: color-mix(in oklch, var(--note-default), white 5%);
+	--note-default-active: color-mix(in oklch, var(--note-default), white 14%);
+	--note-default-border-active: var(--accent-cool-400);
+
+	/* Grid transform CSS variables used during interactive pan (updated via rAF) */
+	--grid-offset-x: 0px;
+	--grid-offset-y: 0px;
+}
+
+:root[data-resolved-theme="dark"] {
+	color-scheme: dark;
+}
+
+@theme inline {
+	--radius-xs: 0.25rem;
+	--radius-sm: 0.5rem;
+	--radius-md: 0.75rem;
+	--radius-lg: 1rem;
+	--radius-xl: 1.25rem;
+	--radius-2xl: initial;
+	--radius-3xl: initial;
+	--radius-4xl: initial;
+}
+
+@theme inline {
+	--color-*: initial;
+
+	--color-black: var(--black);
+	--color-white: var(--white);
+
+	--color-background-100: var(--background-100);
+	--color-background-200: var(--background-200);
+	--color-background-300: var(--background-300);
+	--color-background-400: var(--background-400);
+	--color-background-500: var(--background-500);
+
+	--color-border: var(--border);
+	--color-border-light: var(--border-light);
+	--color-border-dark: var(--border-dark);
+
+	/* Compatibility aliases for existing component variants. */
+	--color-background: var(--background-300);
+	--color-popover: var(--background-200);
+	--color-popover-foreground: var(--foreground-normal);
+	--color-muted: var(--background-400);
+	--color-muted-foreground: var(--foreground-muted);
+
+	--color-input: color-mix(in oklch, var(--background-300), white 8%);
+	--color-ring: color-mix(in oklch, var(--accent-cool-400), transparent 50%);
+	--color-primary: var(--background-100);
+	--color-primary-foreground: var(--background-500);
+	--color-primary-100: var(--background-100);
+	--color-primary-200: var(--background-200);
+	--color-primary-300: var(--background-300);
+	--color-primary-400: var(--background-400);
+	--color-primary-500: var(--background-500);
+
+	--color-foreground: var(--foreground-normal);
+	--color-foreground-normal: var(--foreground-normal);
+	--color-foreground-bold: var(--foreground-bold);
+	--color-foreground-muted: var(--foreground-muted);
+
+	/* debug colours */
+	--color-debug-1: var(--background-100);
+	--color-debug-2: var(--background-200);
+	--color-debug-3: var(--background-400);
+	--color-debug-4: var(--background-500);
+}
+
+html.dark {
+	color-scheme: dark;
+}
+
+body {
+	@apply bg-primary-300 text-foreground-normal antialiased;
+}
+
+/* While actively panning we mimic an "inert" UX by disabling pointer events
+	 for all elements except the editor grid container and its descendants. This
+	 mirrors the base-ui inert behavior while keeping the editor interactive. */
+body.panning-inert * {
+	pointer-events: none !important;
+}
+
+body.panning-inert #editor-grid-container,
+body.panning-inert #editor-grid-container * {
+	pointer-events: auto !important;
+}

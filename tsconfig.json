@@ -1,0 +1,15 @@
+{
+	"compilerOptions": {
+		"paths": {
+			"@/lib/*": ["./lib/*"],
+			"@/components/*": ["./app/components/*"],
+			"@/hooks/*": ["./app/hooks/*"],
+			"@/pages/*": ["./app/pages/*"],
+			"@/providers/*": ["./app/providers/*"],
+			"@/resources/*": ["./resources/*"],
+			"@/*": ["./app/*"]
+		}
+	},
+	"files": [],
+	"references": [{ "path": "./tsconfig.web.json" }]
+}

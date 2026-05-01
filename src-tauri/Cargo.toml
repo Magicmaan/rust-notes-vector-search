@@ -1,0 +1,21 @@
+[workspace]
+members = [
+  "app",
+  "chroma_db",
+  "util"
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.77.2"
+authors = ["you"]
+license = ""
+repository = ""
+
+[workspace.dependencies]
+anyhow = "1.0.102"
+log = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
