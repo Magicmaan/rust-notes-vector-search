@@ -10,7 +10,12 @@ import { getEffectiveViewportTransform } from "../util/viewport-transform";
 import {
 	applyCanvasBackgroundCssVariables,
 	type GridBackgroundViewport,
-} from "../background/grid-background";
+} from "../../elements/background/grid-background";
+import {
+	VIEWPORT_CSS_VAR_OFFSET_X,
+	VIEWPORT_CSS_VAR_OFFSET_Y,
+	VIEWPORT_CSS_VAR_ZOOM,
+} from "../constants/viewport-css-vars";
 
 function clampZoom(zoom: number) {
 	return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom));
@@ -227,19 +232,15 @@ export function useCanvasZoomEvents({
 			wheelPreviewTransformRef.current = nextTransform;
 			if (transformRef.current) {
 				transformRef.current.style.setProperty(
-					"--grid-offset-x",
+					VIEWPORT_CSS_VAR_OFFSET_X,
 					`${nextTransform.offsetX}px`,
 				);
 				transformRef.current.style.setProperty(
-					"--grid-offset-y",
+					VIEWPORT_CSS_VAR_OFFSET_Y,
 					`${nextTransform.offsetY}px`,
 				);
 				transformRef.current.style.setProperty(
-					"--grid-scale",
-					String(nextTransform.zoomLevel),
-				);
-				transformRef.current.style.setProperty(
-					"--zoom-level",
+					VIEWPORT_CSS_VAR_ZOOM,
 					String(nextTransform.zoomLevel),
 				);
 			}

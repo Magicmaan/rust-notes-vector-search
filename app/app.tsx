@@ -8,7 +8,7 @@ import { useEffect, useRef } from "react";
 import { useEditorGridStore } from "./providers/editor/store";
 import { CookiesProvider } from "react-cookie";
 import { useSettingsStore } from "./providers/settings/store";
-import { buildInitialThoughtSpaceDisplays } from "./components/canvas/mock-cards";
+import { buildInitialThoughtSpaceDisplays } from "./components/canvas/canvas-base/mock-cards";
 import { EventBusProvider } from "./events";
 import Sidebar from "./components/ui/sidebar";
 import React from "react";

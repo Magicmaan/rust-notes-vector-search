@@ -252,7 +252,7 @@ export default function Editor({
 					"data-[static=true]:bg-red-500! pointer-events-auto",
 				)}
 				tabIndex={0}
-				onPointerDown={() => {
+				onDoubleClick={() => {
 					console.log("navigating to note", note.id);
 					nav(`/note/${note.id}`);
 				}}

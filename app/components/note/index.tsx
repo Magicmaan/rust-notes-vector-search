@@ -3,7 +3,7 @@ import { useEditorGridStore } from "@/providers/editor/store";
 import { memo, useCallback } from "react";
 import { useNavigate, useParams } from "react-router";
 import type { NoteDisplay } from "@/types";
-import NotePreview from "@/components/note/preview";
+import NotePreview from "@/components/canvas/elements/note";
 import NoteHeader from "./header";
 import NoteContent from "./content";
 import { ScrollArea } from "../ui/scroll-area";

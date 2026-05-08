@@ -1,3 +1,9 @@
+import {
+	VIEWPORT_CSS_VAR_OFFSET_X,
+	VIEWPORT_CSS_VAR_OFFSET_Y,
+	VIEWPORT_CSS_VAR_ZOOM,
+} from "../constants/viewport-css-vars";
+
 export interface ViewportTransform {
 	zoomLevel: number;
 	offsetX: number;
@@ -27,13 +33,13 @@ export function getEffectiveViewportTransform(
 	}
 
 	const cssOffsetX = parseViewportNumber(
-		transformElement.style.getPropertyValue("--grid-offset-x"),
+		transformElement.style.getPropertyValue(VIEWPORT_CSS_VAR_OFFSET_X),
 	);
 	const cssOffsetY = parseViewportNumber(
-		transformElement.style.getPropertyValue("--grid-offset-y"),
+		transformElement.style.getPropertyValue(VIEWPORT_CSS_VAR_OFFSET_Y),
 	);
 	const cssScale = parseViewportNumber(
-		transformElement.style.getPropertyValue("--grid-scale"),
+		transformElement.style.getPropertyValue(VIEWPORT_CSS_VAR_ZOOM),
 	);
 
 	return {

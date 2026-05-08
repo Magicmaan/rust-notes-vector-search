@@ -1,14 +1,14 @@
 import { clsx } from "clsx";
 import { useCallback, useMemo, useRef } from "react";
-import type { NoteDisplay } from "../../types";
+import type { NoteDisplay } from "../../../types";
 import { useEditorGridStore } from "@/providers/editor/store";
 import { useShallow } from "zustand/react/shallow";
-import NoteMenubar from "./menubar";
-import { useGridMetrics } from "./hooks/useGridMetrics";
-import { usePositionRendering } from "./hooks/usePositionRendering";
-import { useDragInteraction } from "./hooks/useDragInteraction";
-import { useResizeInteraction } from "./hooks/useResizeInteraction";
-import { useExpandNavigation } from "./hooks/useExpandNavigation";
+import NoteMenubar from "../../note/menubar";
+import { useGridMetrics } from "../../note/hooks/useGridMetrics";
+import { usePositionRendering } from "../../note/hooks/usePositionRendering";
+import { useDragInteraction } from "../../note/hooks/useDragInteraction";
+import { useResizeInteraction } from "../../note/hooks/useResizeInteraction";
+import { useExpandNavigation } from "../../note/hooks/useExpandNavigation";
 import {
 	BarChart as BarChart3,
 	Help as CircleHelp,
@@ -24,9 +24,9 @@ import {
 import {
 	getThoughtSpaceCardMock,
 	type CanvasCardIconKey,
-} from "@/components/canvas/mock-cards";
+} from "@/components/canvas/canvas-base/mock-cards";
 import React from "react";
-import Editor from "./editor";
+import Editor from "../../note/editor";
 
 const CARD_ICON_MAP: Record<
 	CanvasCardIconKey,
@@ -202,7 +202,7 @@ export default function NotePreview({ element }: { element: NoteDisplay }) {
 		>
 			<button
 				type="button"
-				onDoubleClick={expandNav.onDoubleClick}
+				// onDoubleClick={expandNav.onDoubleClick}
 				className={clsx(
 					"group select-none pointer-events-auto z-100 note-surface",
 					"w-full h-full flex-1",

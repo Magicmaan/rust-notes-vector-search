@@ -4,12 +4,12 @@ import { useCallback, useEffect, useRef } from "react";
 import Note from "@/components/note";
 import { useEventBus, useEventListener } from "@/events";
 import { useEditorGridStore } from "@/providers/editor/store";
-import { setContainerOffset as setPanContainer } from "./pan-controller";
 import CanvasChromeOverlay from "./chrome-overlay";
 import { useMarqueeSelection } from "./hooks/useMarqueeSelection";
-import { applyCanvasBackgroundCssVariables } from "./background/grid-background";
+import { applyCanvasBackgroundCssVariables } from "../elements/background/grid-background";
 import { useCanvasPanEvents } from "./hooks/useCanvasPanEvents";
 import { useCanvasZoomEvents } from "./hooks/useCanvasZoomEvents";
+import { useSpacePanSession } from "./hooks/useSpacePanSession";
 
 type ViewportSize = {
 	width: number;
@@ -20,7 +20,6 @@ export default function Canvas({ children }: { children?: React.ReactNode }) {
 	const ref = useRef<HTMLDivElement>(null);
 	const transformRef = useRef<HTMLDivElement>(null);
 	const lastViewportSizeRef = useRef<ViewportSize | null>(null);
-	const panCleanupRef = useRef<(() => void) | null>(null);
 	const gridSize = useEditorGridStore((s) => s.gridSize);
 	const setViewportSize = useEditorGridStore((s) => s.setViewportSize);
 	const elementIds = useEditorGridStore((s) => s.elementIds);
@@ -41,6 +40,11 @@ export default function Canvas({ children }: { children?: React.ReactNode }) {
 		containerRef: ref,
 		transformRef,
 		gridSize,
+	});
+
+	useSpacePanSession({
+		containerRef: ref,
+		emit,
 	});
 
 	const syncViewportSize = useCallback(() => {
@@ -99,171 +103,6 @@ export default function Canvas({ children }: { children?: React.ReactNode }) {
 	}, [emit, syncViewportSize]);
 
 	// background is now managed by InfiniteBackground component
-
-	// Register transform container for panController and wire space+drag interactions
-	useEffect(() => {
-		setPanContainer(
-			document.getElementById("editor-grid-transform") as HTMLElement | null,
-		);
-
-		const container = ref.current;
-		if (!container) return;
-
-		const spaceHeld = { value: false } as { value: boolean };
-		const panSession = {
-			active: false,
-			pointerId: -1,
-			startX: 0,
-			startY: 0,
-		} as {
-			active: boolean;
-			pointerId: number;
-			startX: number;
-			startY: number;
-		};
-
-		const onKeyDown = (e: KeyboardEvent) => {
-			if (e.code === "Space" || e.key === " ") {
-				const target = e.target as HTMLElement | null;
-				if (
-					target &&
-					(target.tagName === "INPUT" ||
-						target.tagName === "TEXTAREA" ||
-						target.isContentEditable)
-				) {
-					return;
-				}
-				spaceHeld.value = true;
-			}
-		};
-
-		const onKeyUp = (e: KeyboardEvent) => {
-			if (e.code === "Space" || e.key === " ") {
-				spaceHeld.value = false;
-			}
-		};
-
-		const endPanSession = (
-			commit: boolean,
-			delta: { x: number; y: number } = { x: 0, y: 0 },
-		) => {
-			if (!panSession.active) {
-				return;
-			}
-			try {
-				(container as HTMLElement).releasePointerCapture(panSession.pointerId);
-			} catch {
-				// ignore
-			}
-			emit("canvas:pan:end", {
-				pointerId: panSession.pointerId,
-				commit,
-				deltaX: delta.x,
-				deltaY: delta.y,
-			});
-			panSession.active = false;
-			panSession.pointerId = -1;
-			document.body.classList.remove("panning-inert");
-		};
-
-		const onContainerPointerDown = (evt: PointerEvent) => {
-			if (!spaceHeld.value || evt.button !== 0) return;
-			panCleanupRef.current?.();
-
-			panSession.active = true;
-			panSession.pointerId = evt.pointerId;
-			panSession.startX = evt.clientX;
-			panSession.startY = evt.clientY;
-
-			try {
-				(container as HTMLElement).setPointerCapture(evt.pointerId);
-			} catch {
-				// ignore
-			}
-
-			document.body.classList.add("panning-inert");
-			emit("canvas:pan:start", {
-				pointerId: evt.pointerId,
-				startX: evt.clientX,
-				startY: evt.clientY,
-			});
-
-			const onWindowMove = (ev: PointerEvent) => {
-				if (!panSession.active || ev.pointerId !== panSession.pointerId) return;
-				const dx = ev.clientX - panSession.startX;
-				const dy = ev.clientY - panSession.startY;
-				emit("canvas:pan:update", {
-					pointerId: ev.pointerId,
-					deltaX: dx,
-					deltaY: dy,
-				});
-			};
-
-			const cleanupWindowListeners = () => {
-				window.removeEventListener("pointermove", onWindowMove, true);
-				window.removeEventListener("pointerup", onWindowUp, true);
-				window.removeEventListener("pointercancel", onWindowCancel, true);
-				window.removeEventListener("blur", onWindowBlur, true);
-				panCleanupRef.current = null;
-			};
-
-			const onWindowUp = (ev: PointerEvent) => {
-				if (!panSession.active || ev.pointerId !== panSession.pointerId) return;
-				const dx = ev.clientX - panSession.startX;
-				const dy = ev.clientY - panSession.startY;
-				endPanSession(true, { x: dx, y: dy });
-				cleanupWindowListeners();
-			};
-
-			const onWindowCancel = (ev: PointerEvent) => {
-				if (!panSession.active || ev.pointerId !== panSession.pointerId) return;
-				try {
-					(container as HTMLElement).releasePointerCapture(ev.pointerId);
-				} catch {
-					console.warn(
-						"Failed to release pointer capture on cancel",
-						ev.pointerId,
-					);
-				}
-				endPanSession(false);
-				cleanupWindowListeners();
-			};
-
-			const onWindowBlur = () => {
-				if (!panSession.active) return;
-				endPanSession(false);
-				cleanupWindowListeners();
-			};
-
-			window.addEventListener("pointermove", onWindowMove, true);
-			window.addEventListener("pointerup", onWindowUp, true);
-			window.addEventListener("pointercancel", onWindowCancel, true);
-			window.addEventListener("blur", onWindowBlur, true);
-
-			panCleanupRef.current = () => {
-				endPanSession(false);
-				cleanupWindowListeners();
-			};
-		};
-
-		window.addEventListener("keydown", onKeyDown);
-		window.addEventListener("keyup", onKeyUp);
-		container.addEventListener(
-			"pointerdown",
-			onContainerPointerDown as EventListener,
-		);
-
-		return () => {
-			panCleanupRef.current?.();
-			window.removeEventListener("keydown", onKeyDown);
-			window.removeEventListener("keyup", onKeyUp);
-			container.removeEventListener(
-				"pointerdown",
-				onContainerPointerDown as EventListener,
-			);
-			document.body.classList.remove("panning-inert");
-		};
-	}, [emit]);
 
 	const handleWheel = useCallback(
 		(e: React.WheelEvent<HTMLDivElement>) => {

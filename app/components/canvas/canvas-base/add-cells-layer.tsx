@@ -89,16 +89,16 @@ export default function AddCellsLayer() {
 				createdAt: now,
 				updatedAt: now,
 			};
-			let w = DEFAULT_PLACEHOLDER_NOTE_SPAN;
+			let noteWidthCells = DEFAULT_PLACEHOLDER_NOTE_SPAN;
 
 			if (x % 2 === 0) {
-				w = 2;
+				noteWidthCells = 2;
 			}
 			addElement(
 				new NoteDisplay({
 					x,
 					y,
-					width: w,
+					width: noteWidthCells,
 					height: DEFAULT_PLACEHOLDER_NOTE_SPAN,
 					note: placeholderNote,
 					backgroundColor: defaultNoteColor,

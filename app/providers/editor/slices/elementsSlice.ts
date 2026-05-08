@@ -261,7 +261,7 @@ export const createElementsSlice: StateCreator<
 		return get().findOccupyingIds(x, y, width, height, excludeIds).length === 0;
 	},
 
-	findNearestFree: (x, y, width, height, excludeIds, maxRadius = 20) => {
+		findNearestFree: (x, y, width, height, excludeIds, maxRadius = 20) => {
 		if (!Number.isFinite(x) || !Number.isFinite(y) || width < 1 || height < 1) {
 			return null;
 		}
@@ -269,23 +269,23 @@ export const createElementsSlice: StateCreator<
 		const elements = get().elements;
 		const excludedIdSet = toExcludedIdSet(excludeIds);
 
-		function isFree(cx: number, cy: number) {
-			if (cx < 0 || cy < 0) return false;
-			for (const el of Object.values(elements)) {
-				if (excludedIdSet.has(el.id)) continue;
-				if (
-					rectanglesOverlap(
-						cx,
-						cy,
-						width,
-						height,
-						el.x,
-						el.y,
-						el.width,
-						el.height,
-					)
-				) {
-					return false;
+			function isFree(candidateX: number, candidateY: number) {
+				if (candidateX < 0 || candidateY < 0) return false;
+				for (const element of Object.values(elements)) {
+					if (excludedIdSet.has(element.id)) continue;
+					if (
+						rectanglesOverlap(
+							candidateX,
+							candidateY,
+							width,
+							height,
+							element.x,
+							element.y,
+							element.width,
+							element.height,
+						)
+					) {
+						return false;
 				}
 			}
 			return true;
@@ -301,28 +301,30 @@ export const createElementsSlice: StateCreator<
 		const startY = Math.max(0, Math.floor(y - boundedRadius));
 		const endY = Math.max(0, Math.ceil(y + boundedRadius));
 
-		for (let cy = startY; cy <= endY; cy++) {
-			for (let cx = startX; cx <= endX; cx++) {
-				if (!isFree(cx, cy)) {
-					continue;
-				}
+			for (let candidateY = startY; candidateY <= endY; candidateY++) {
+				for (let candidateX = startX; candidateX <= endX; candidateX++) {
+					if (!isFree(candidateX, candidateY)) {
+						continue;
+					}
 
-				const dx = cx - x;
-				const dy = cy - y;
-				const distanceSquared = dx * dx + dy * dy;
-				const manhattan = Math.abs(dx) + Math.abs(dy);
+					const deltaX = candidateX - x;
+					const deltaY = candidateY - y;
+					const distanceSquared = deltaX * deltaX + deltaY * deltaY;
+					const manhattan = Math.abs(deltaX) + Math.abs(deltaY);
 
 				if (
 					distanceSquared < bestDistanceSquared ||
 					(distanceSquared === bestDistanceSquared &&
-						(manhattan < bestManhattan ||
-							(manhattan === bestManhattan &&
-								(best === null || cy < best.y || (cy === best.y && cx < best.x)))))
-				) {
-					best = { x: cx, y: cy };
-					bestDistanceSquared = distanceSquared;
-					bestManhattan = manhattan;
-				}
+								(manhattan < bestManhattan ||
+									(manhattan === bestManhattan &&
+										(best === null ||
+											candidateY < best.y ||
+											(candidateY === best.y && candidateX < best.x)))))
+					) {
+						best = { x: candidateX, y: candidateY };
+						bestDistanceSquared = distanceSquared;
+						bestManhattan = manhattan;
+					}
 			}
 		}
 

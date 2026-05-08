@@ -11,7 +11,7 @@ import { getEffectiveViewportTransform } from "../util/viewport-transform";
 import {
 	applyCanvasBackgroundCssVariables,
 	type GridBackgroundViewport,
-} from "../background/grid-background";
+} from "../../elements/background/grid-background";
 
 type ViewportTransform = GridBackgroundViewport;
 type PendingPanDelta = { deltaX: number; deltaY: number };
