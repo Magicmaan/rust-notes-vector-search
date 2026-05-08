@@ -68,14 +68,14 @@ impl DatabaseCollections {
     pub async fn delete_collection(&mut self, name: &str) -> Result<()> {
         let client = self.client.lock().unwrap();
         client.delete_collection(name).await?;
-        self.collections.retain(|c| c.name != name);
+        // self.collections.retain(|c| c.name != name);
         Ok(())
     }
 
     pub async fn update_collection(&mut self, name: &str, new_name: &str) -> Result<()> {
-        let collection = self.get_collection(name).await?;
+        let mut collection = self.get_collection(name).await?;
 
-        collection.modify(Some(new_name), {}).await?;
+        collection.modify(Some(new_name), None).await?;
         Ok(())
     }
 }

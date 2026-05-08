@@ -6,8 +6,8 @@ import {
 	startPan as panStart,
 	updatePan as panUpdate,
 	endPan as panEnd,
-} from "../panController";
-import { getEffectiveViewportTransform } from "../lib/viewport-transform";
+} from "../pan-controller";
+import { getEffectiveViewportTransform } from "../util/viewport-transform";
 import {
 	applyCanvasBackgroundCssVariables,
 	type GridBackgroundViewport,

@@ -43,22 +43,6 @@ export function SidebarFlexMiddleSection() {
 						<button
 							type="button"
 							className="text-foreground-muted hover:text-foreground-normal transition-colors"
-							aria-label="Add space"
-						>
-							<Plus className="size-4" />
-						</button>
-					}
-				>
-					Spaces
-				</GroupTitle>
-			</div>
-
-			<div className="mt-4">
-				<GroupTitle
-					right={
-						<button
-							type="button"
-							className="text-foreground-muted hover:text-foreground-normal transition-colors"
 							aria-label="Collapse tags"
 						>
 							<ChevronDown className="size-4" />

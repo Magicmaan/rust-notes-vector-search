@@ -149,11 +149,15 @@ html {
 		transform: scale(1);
 	}
 	25% {
-		transform: scale(1.05);
+		transform: scale(calc(1 + (0.05 * var(--scale-bounce-intensity))));
 	}
 	100% {
 		transform: scale(1);
 	}
+}
+
+html {
+	--scale-bounce-intensity: 1;
 }
 
 @theme inline {

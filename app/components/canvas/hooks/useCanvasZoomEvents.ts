@@ -6,7 +6,7 @@ import {
 	MIN_ZOOM,
 	ZOOM_STEP,
 } from "@/providers/editor/slices/viewportSlice";
-import { getEffectiveViewportTransform } from "../lib/viewport-transform";
+import { getEffectiveViewportTransform } from "../util/viewport-transform";
 import {
 	applyCanvasBackgroundCssVariables,
 	type GridBackgroundViewport,

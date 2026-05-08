@@ -1,10 +1,3 @@
-#[tauri::command]
-fn open_devtools(window: tauri::WebviewWindow) {
-    if cfg!(debug_assertions) {
-        window.open_devtools();
-    }
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -20,7 +13,7 @@ pub fn run() {
             setup_chroma(app)?;
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![open_devtools])
+        .invoke_handler(tauri::generate_handler![])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

@@ -1,5 +1,5 @@
 import { BrowserRouter, Route, Routes } from "react-router";
-import { AppSidebar } from "./components/sidebar";
+import AppSidebar from "./components/app-sidebar";
 import CanvasPage from "./pages/canvas";
 import HomePage from "./pages/home";
 import Note from "./components/note";

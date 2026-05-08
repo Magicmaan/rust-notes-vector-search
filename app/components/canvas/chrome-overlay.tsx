@@ -80,7 +80,12 @@ export default function CanvasChromeOverlay() {
 				/>
 			</div>
 			<div className="pointer-events-auto absolute left-1/2 bottom-[var(--ts-edge-gap)] -translate-x-1/2 rounded-xl border border-primary-200/35 bg-primary-500/30 px-2 py-1 backdrop-blur-sm">
-				<div className="flex items-center gap-2">
+				<div
+					className="flex items-center gap-2"
+					style={{
+						anchorName: "toolbar",
+					}}
+				>
 					{TOOLBAR_TOOLS.map((tool) => {
 						const Icon = tool.icon;
 						const active = tool.key === activeTool;
@@ -103,7 +108,10 @@ export default function CanvasChromeOverlay() {
 			</div>
 
 			{showMinimap ? (
-				<div className="pointer-events-auto absolute bottom-(--ts-edge-gap) right-(--ts-edge-gap) w-1/4 aspect-video">
+				<div
+					className="pointer-events-auto absolute bottom-(--ts-edge-gap) right-(--ts-edge-gap) w-1/4 aspect-video"
+					style={{ positionAnchor: "toolbar", left: "anchor(right)" }}
+				>
 					<div className="h-full w-full rounded-md border border-primary-200/35 ts-minimap" />
 				</div>
 			) : null}

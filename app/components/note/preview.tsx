@@ -26,6 +26,7 @@ import {
 	type CanvasCardIconKey,
 } from "@/components/canvas/mock-cards";
 import React from "react";
+import Editor from "./editor";
 
 const CARD_ICON_MAP: Record<
 	CanvasCardIconKey,
@@ -49,13 +50,14 @@ export default function NotePreview({ element }: { element: NoteDisplay }) {
 	const isSelected = selectedNoteIds.includes(element.id);
 	const isMultiSelected = isSelected && selectedNoteIds.length > 1;
 
-	const { updateElement, isAreaFree, findNearestFree, gridSize } =
+	const { updateElement, isAreaFree, findNearestFree, gridSize, other } =
 		useEditorGridStore(
 			useShallow((s) => ({
 				updateElement: s.updateElement,
 				isAreaFree: s.isAreaFree,
 				findNearestFree: s.findNearestFree,
 				gridSize: s.gridSize,
+				other: s.helpers,
 			})),
 		);
 
@@ -68,6 +70,9 @@ export default function NotePreview({ element }: { element: NoteDisplay }) {
 		elementX: element.x,
 		elementY: element.y,
 	});
+
+	const transformedGridPosition = other.toGridOffset(element.x, element.y);
+	const transformedgridSize = other.toGridSize(element.width, element.height);
 
 	const elementPosition = useMemo(
 		() => ({ x: element.x, y: element.y }),
@@ -91,8 +96,8 @@ export default function NotePreview({ element }: { element: NoteDisplay }) {
 	const positioning = usePositionRendering({
 		wrapperRef,
 		pixelSize: grid.pixelSize,
-		cellWidth: grid.cellWidth,
-		cellHeight: grid.cellHeight,
+		cellWidth: gridSize[0],
+		cellHeight: gridSize[1],
 		element: elementPosition,
 	});
 
@@ -138,6 +143,21 @@ export default function NotePreview({ element }: { element: NoteDisplay }) {
 	const MockIcon = mockIcon;
 	const isRoadmapCard = mockCard?.kind === "roadmap";
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: Events should handle
+	const initialTransforms = useMemo(() => {
+		const transforms = {
+			"--offset-x": `${grid.offset.x}px`,
+			"--offset-y": `${grid.offset.y}px`,
+			"--width": `${grid.pixelSize.x}px`,
+			"--height": `${grid.pixelSize.y}px`,
+			transform: `translate3d(var(--offset-x), var(--offset-y), 0)`,
+			width: `var(--width)`,
+			height: `var(--height)`,
+			willChange: "auto",
+		} as React.CSSProperties;
+		return transforms;
+	}, []);
+
 	return (
 		// biome-ignore lint/a11y/useFocusableInteractive: <explanation>
 		// biome-ignore lint/a11y/useSemanticElements: <explanation>
@@ -159,14 +179,8 @@ export default function NotePreview({ element }: { element: NoteDisplay }) {
 			data-card-state={mockCard?.state ?? "default"}
 			style={
 				{
-					"--offset-x": `${grid.offset.x}px`,
-					"--offset-y": `${grid.offset.y}px`,
-					"--width": `${grid.pixelSize.x}px`,
-					"--height": `${grid.pixelSize.y}px`,
-					transform: `translate3d(var(--offset-x), var(--offset-y), 0)`,
-					width: `var(--width)`,
-					height: `var(--height)`,
-					willChange: "auto",
+					...initialTransforms,
+
 					"--background": element.backgroundColor ?? "var(--note-default)",
 					"--border-radius": "var(--note-default-border-radius)",
 					"--border": "color-mix(in oklch, var(--background), white 50%)",
@@ -204,55 +218,13 @@ export default function NotePreview({ element }: { element: NoteDisplay }) {
 				key={element.id}
 				id={`note-${element.id}`}
 			>
-				<div className="note-surface-content flex h-full flex-col gap-2 p-4 font-['Manrope','Avenir_Next','SF_Pro_Display','Segoe_UI',sans-serif]">
-					<header className="flex items-center gap-2">
-						{MockIcon ? (
-							<MockIcon
-								className="size-[18px]"
-								style={{ color: mockCard?.accent ?? "var(--foreground-muted)" }}
-							/>
-						) : null}
-						<h3 className="text-[clamp(16px,1.08vw,23px)] leading-[1.15] font-[560] tracking-[-0.01em] text-foreground-bold">
-							{mockCard?.title ?? element.note.title}
-						</h3>
-					</header>
-
-					{isRoadmapCard && mockCard?.roadmap ? (
-						<div className="grid min-h-0 flex-1 grid-cols-3 gap-[0.35rem]">
-							{mockCard.roadmap.map((col) => (
-								<section
-									className="flex min-h-0 flex-col gap-[0.3rem] rounded-[0.6rem] border p-[0.4rem] [border-color:color-mix(in_oklch,var(--background-100),transparent_72%)] [background:color-mix(in_oklch,var(--background-300),black_8%)]"
-									key={col.title}
-								>
-									<h4 className="text-[clamp(10px,0.68vw,14px)] font-semibold text-foreground-bold">
-										{col.title}
-									</h4>
-									<ul className="m-0 flex flex-1 list-none flex-col gap-[0.16rem] p-0 text-[clamp(9px,0.62vw,13px)] leading-[1.25] text-foreground-muted">
-										{col.items.map((item) => (
-											<li key={item.label}>
-												{item.done ? "☑" : "☐"} {item.label}
-											</li>
-										))}
-									</ul>
-									<p className="mt-auto text-[clamp(8px,0.58vw,12px)] text-foreground-muted">
-										{col.period}
-									</p>
-								</section>
-							))}
-						</div>
-					) : (
-						<div className="flex flex-1 flex-col gap-[0.18rem] text-[clamp(12px,0.86vw,18px)] leading-[1.45] [color:color-mix(in_oklch,var(--foreground-normal),var(--background-300)_20%)]">
-							{(mockCard?.lines ?? [element.note.content]).map((line) => (
-								<p key={line}>
-									{mockCard?.kind === "bullets" ? `• ${line}` : line}
-								</p>
-							))}
-						</div>
-					)}
-
-					<footer className="mt-auto text-[clamp(11px,0.75vw,16px)] italic [color:color-mix(in_oklch,var(--accent-cool-300),#d68ce9_42%)]">
-						{mockCard?.tag ?? "#notes"}
-					</footer>
+				<div
+					className="note-surface-content flex h-full flex-col gap-2 p-4 font-['Manrope','Avenir_Next','SF_Pro_Display','Segoe_UI',sans-serif] text-start"
+					style={{
+						anchorName: "--rvh",
+					}}
+				>
+					<Editor note={element} preview />
 				</div>
 			</button>
 

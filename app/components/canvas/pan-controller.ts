@@ -2,8 +2,21 @@ import { useEditorGridStore } from "@/providers/editor/store";
 
 type Delta = { x: number; y: number };
 
+class CanvasCamera {
+	containerElement: HTMLElement | null = null;
+	animationFrameId: number | null = null;
+	originX = 0;
+	originY = 0;
+	pendingX = 0;
+	pendingY = 0;
+
+	constructor(containerElement: HTMLElement | null) {
+		this.containerElement = containerElement;
+	}
+}
+
 let containerEl: HTMLElement | null = null;
-let rafId: number | null = null;
+let animationFrameId: number | null = null;
 let originX = 0;
 let originY = 0;
 let pendingX = 0;
@@ -25,7 +38,7 @@ export function startPan() {
 	pendingX = originX;
 	pendingY = originY;
 	// mark pan active in store
-	const store = useEditorGridStore.getState() as any;
+	const store = useEditorGridStore.getState();
 	if (typeof store.startPan === "function") {
 		store.startPan();
 	}
@@ -38,9 +51,9 @@ export function updatePan(deltaX: number, deltaY: number) {
 }
 
 function scheduleFrame() {
-	if (rafId !== null) return;
-	rafId = requestAnimationFrame(() => {
-		rafId = null;
+	if (animationFrameId !== null) return;
+	animationFrameId = requestAnimationFrame(() => {
+		animationFrameId = null;
 		if (!containerEl) return;
 		containerEl.style.setProperty("--grid-offset-x", `${pendingX}px`);
 		containerEl.style.setProperty("--grid-offset-y", `${pendingY}px`);
@@ -48,17 +61,15 @@ function scheduleFrame() {
 }
 
 export function endPan(commit: boolean, finalDelta?: Delta) {
-	if (rafId !== null) {
-		cancelAnimationFrame(rafId);
-		rafId = null;
+	if (animationFrameId !== null) {
+		cancelAnimationFrame(animationFrameId);
+		animationFrameId = null;
 	}
 
 	if (!containerEl) {
-		// still update store state
-		const store = useEditorGridStore.getState() as any;
-		if (typeof store.endPan === "function") {
-			store.endPan(commit, finalDelta);
-		}
+		const store = useEditorGridStore.getState();
+		store.endPan(commit, finalDelta);
+
 		return;
 	}
 

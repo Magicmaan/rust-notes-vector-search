@@ -1,6 +1,7 @@
 import React from "react";
 import Sidebar from "../ui/sidebar";
 import { PRIMARY_NAV } from "./constants";
+import { Group } from "@project-lary/react-material-symbols-400-rounded";
 
 type SidebarTopSnapSectionProps = {
 	onNavigateCanvas: () => void;
@@ -10,24 +11,16 @@ export function SidebarTopSnapSection({
 	onNavigateCanvas,
 }: SidebarTopSnapSectionProps) {
 	return (
-		<div className="flex flex-col gap-2">
+		<ol className="flex flex-col gap-2 p-2 h-full justify-start">
 			{PRIMARY_NAV.map((item) => {
 				const Icon = item.icon;
 				return (
-					<Sidebar.MenuItem
-						className="flex flex-row text-md"
-						type="button"
-						title={item.label}
-						key={item.id}
-						onClick={() => {
-							if (item.id === "canvas") onNavigateCanvas();
-						}}
-					>
-						<Icon className="size-5 text-foreground-muted group-hover:text-foreground-normal" />
-						<span className="flex-1">{item.label}</span>
+					<Sidebar.MenuItem>
+						<Group className="size-4 text-foreground-muted" data-align="left" />
+						<span className="">ThoughtSpaces</span>
 					</Sidebar.MenuItem>
 				);
 			})}
-		</div>
+		</ol>
 	);
 }

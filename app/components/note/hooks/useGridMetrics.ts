@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { toVector2D as t2d } from "@/lib/utils";
+import { toVector2D as t2d } from "@/lib/utils/math";
 
 const DEFAULT_GRID_SIZE = 16;
 
@@ -42,6 +42,10 @@ export function useGridMetrics(input: UseGridMetricsInput): GridMetrics {
 		() => Math.max(1, gridSizeHeight || DEFAULT_GRID_SIZE),
 		[gridSizeHeight],
 	);
+	console.log("useGridMetrics", {
+		cellWidth,
+		cellHeight,
+	});
 
 	const pixelSize = useMemo(
 		() => t2d([elementWidth * cellWidth, elementHeight * cellHeight]),

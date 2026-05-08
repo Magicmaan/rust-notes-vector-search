@@ -1,4 +1,4 @@
-import { Vector2D, type Vector2DLike } from "@/lib/utils";
+import { Vector2D, type Vector2DLike } from "@/lib/utils/math";
 
 /**
  * Simple Rectangle class for geometry calculations

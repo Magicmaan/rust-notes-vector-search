@@ -15,7 +15,7 @@ import {
 	getEffectiveViewportTransform,
 	worldPointFromClient,
 	type ViewportTransform,
-} from "@/components/canvas/lib/viewport-transform";
+} from "@/components/canvas/util/viewport-transform";
 
 const GROUP_SNAP_SEARCH_RADIUS = 20;
 
@@ -82,7 +82,12 @@ type UseMarqueeSelectionResult = {
 	handlePointerDownCapture: (e: ReactPointerEvent<HTMLDivElement>) => void;
 };
 
-function normalizeRect(aX: number, aY: number, bX: number, bY: number): WorldRect {
+function normalizeRect(
+	aX: number,
+	aY: number,
+	bX: number,
+	bY: number,
+): WorldRect {
 	const left = Math.min(aX, bX);
 	const top = Math.min(aY, bY);
 	const right = Math.max(aX, bX);
@@ -190,7 +195,9 @@ function buildDisplay(snapshot: GroupMoveSnapshotItem, x: number, y: number) {
 	});
 }
 
-function toViewportTransform(state: ReturnType<typeof useEditorGridStore.getState>): ViewportTransform {
+function toViewportTransform(
+	state: ReturnType<typeof useEditorGridStore.getState>,
+): ViewportTransform {
 	return {
 		offsetX: state.offsetX,
 		offsetY: state.offsetY,
@@ -211,7 +218,10 @@ function toPointerWorldPoint({
 	transform: HTMLDivElement | null;
 	state: ReturnType<typeof useEditorGridStore.getState>;
 }) {
-	const viewport = getEffectiveViewportTransform(transform, toViewportTransform(state));
+	const viewport = getEffectiveViewportTransform(
+		transform,
+		toViewportTransform(state),
+	);
 	return worldPointFromClient(clientX, clientY, container, viewport);
 }
 
@@ -261,7 +271,11 @@ function createGroupMovableTarget({
 			const deltaGridX = resolvedGridX - bounds.gridX;
 			const deltaGridY = resolvedGridY - bounds.gridY;
 			return snapshots.map((snapshot) =>
-				buildDisplay(snapshot, snapshot.x + deltaGridX, snapshot.y + deltaGridY),
+				buildDisplay(
+					snapshot,
+					snapshot.x + deltaGridX,
+					snapshot.y + deltaGridY,
+				),
 			);
 		},
 		rollback: () => {
@@ -276,7 +290,9 @@ export function useMarqueeSelection(
 	input: UseMarqueeSelectionInput,
 ): UseMarqueeSelectionResult {
 	const { containerRef, transformRef } = input;
-	const [activeMarqueeRect, setActiveMarqueeRect] = useState<WorldRect | null>(null);
+	const [activeMarqueeRect, setActiveMarqueeRect] = useState<WorldRect | null>(
+		null,
+	);
 	const [committedMarqueeRect, setCommittedMarqueeRect] =
 		useState<WorldRect | null>(null);
 
@@ -298,7 +314,9 @@ export function useMarqueeSelection(
 	});
 
 	const setSelectedNoteIds = useEditorGridStore((s) => s.setSelectedNoteIds);
-	const clearSelectedNoteIds = useEditorGridStore((s) => s.clearSelectedNoteIds);
+	const clearSelectedNoteIds = useEditorGridStore(
+		(s) => s.clearSelectedNoteIds,
+	);
 	const updateElementsBulk = useEditorGridStore((s) => s.updateElementsBulk);
 
 	const clearDragSession = useCallback(() => {
@@ -317,7 +335,9 @@ export function useMarqueeSelection(
 	}, []);
 
 	const isAnySessionActive = useCallback(() => {
-		return selectionSessionRef.current.active || groupMoveSessionRef.current.active;
+		return (
+			selectionSessionRef.current.active || groupMoveSessionRef.current.active
+		);
 	}, []);
 
 	const applySelectionFromRect = useCallback(
@@ -417,7 +437,13 @@ export function useMarqueeSelection(
 		return () => {
 			window.removeEventListener("pointerdown", onWindowPointerDown, true);
 		};
-	}, [clearSelectedNoteIds, committedMarqueeRect, containerRef, isAnySessionActive, transformRef]);
+	}, [
+		clearSelectedNoteIds,
+		committedMarqueeRect,
+		containerRef,
+		isAnySessionActive,
+		transformRef,
+	]);
 
 	const startSelectionMode = useCallback(
 		({
@@ -444,7 +470,9 @@ export function useMarqueeSelection(
 			selectionSessionRef.current.startWorldY = startPoint.y;
 			selectionSessionRef.current.currentWorldX = startPoint.x;
 			selectionSessionRef.current.currentWorldY = startPoint.y;
-			selectionSessionRef.current.selectedIdsAtStart = [...state.selectedNoteIds];
+			selectionSessionRef.current.selectedIdsAtStart = [
+				...state.selectedNoteIds,
+			];
 
 			clearDragSession();
 			dragSessionCleanupRef.current = startManagedPointerDragSession({
@@ -544,7 +572,9 @@ export function useMarqueeSelection(
 				thresholdPx: DRAG_THRESHOLD_PX,
 				getZoomLevel: () => useEditorGridStore.getState().zoomLevel,
 				onMove: ({ deltaPixelX, deltaPixelY }) => {
-					updateElementsBulk(groupTarget.buildPreview(deltaPixelX, deltaPixelY));
+					updateElementsBulk(
+						groupTarget.buildPreview(deltaPixelX, deltaPixelY),
+					);
 					setActiveMarqueeRect({
 						x: groupTarget.bounds.pixelX + deltaPixelX,
 						y: groupTarget.bounds.pixelY + deltaPixelY,
@@ -659,7 +689,12 @@ export function useMarqueeSelection(
 
 			const transform = transformRef.current;
 			const target = e.target as HTMLElement | null;
-			if (!transform || !target || !transform.contains(target) || target.closest(".note")) {
+			if (
+				!transform ||
+				!target ||
+				!transform.contains(target) ||
+				target.closest(".note")
+			) {
 				return;
 			}
 

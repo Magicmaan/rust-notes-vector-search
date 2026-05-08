@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef } from "react";
 import Note from "@/components/note";
 import { useEventBus, useEventListener } from "@/events";
 import { useEditorGridStore } from "@/providers/editor/store";
-import { setContainerOffset as setPanContainer } from "./panController";
+import { setContainerOffset as setPanContainer } from "./pan-controller";
 import CanvasChromeOverlay from "./chrome-overlay";
 import { useMarqueeSelection } from "./hooks/useMarqueeSelection";
 import { applyCanvasBackgroundCssVariables } from "./background/grid-background";

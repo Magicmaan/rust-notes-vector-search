@@ -9,6 +9,7 @@
 
 import type { StateCreator } from "zustand";
 import type { EditorGridStoreType } from "../types";
+import { toVector2D, Vector2D } from "@/lib/utils/math";
 
 /**
  * Grid layout configuration state
@@ -26,6 +27,8 @@ export interface GridSliceState {
 
 	/** Size of one grid cell in pixels */
 	gridSize: [number, number];
+
+	defaultGridSize: [number, number];
 }
 
 /**
@@ -58,11 +61,19 @@ export interface GridSliceActions {
 	setGridSize: (gridSize: [number, number]) => void;
 }
 
+export interface GridSliceHelper {
+	helpers: {
+		// some helper functions related to grid calculations
+		toGridSize: (elementWidth: number, elementHeight: number) => Vector2D;
+		toGridOffset: (elementX: number, elementY: number) => Vector2D;
+	};
+}
+
 /**
  * Complete GridSlice type
  * Union of state and actions
  */
-export type GridSliceType = GridSliceState & GridSliceActions;
+export type GridSliceType = GridSliceState & GridSliceActions & GridSliceHelper;
 
 /**
  * Create the grid configuration slice
@@ -79,6 +90,7 @@ export const createGridSlice: StateCreator<
 	rowHeight: 75,
 	margin: [25, 25],
 	gridSize: [16, 16],
+	defaultGridSize: [16, 16],
 
 	// Actions
 	setColumns: (cols: number) =>
@@ -139,4 +151,19 @@ export const createGridSlice: StateCreator<
 				Math.max(1, Math.round(gridSize[1])),
 			];
 		}),
+
+	// Helpers
+	helpers: {
+		toGridSize: (elementWidth: number, elementHeight: number) => {
+			const gridSize = _get().gridSize;
+			return toVector2D([
+				elementWidth * gridSize[0],
+				elementHeight * gridSize[1],
+			]);
+		},
+		toGridOffset: (elementX: number, elementY: number) => {
+			const gridSize = _get().gridSize;
+			return toVector2D([elementX * gridSize[0], elementY * gridSize[1]]);
+		},
+	},
 });

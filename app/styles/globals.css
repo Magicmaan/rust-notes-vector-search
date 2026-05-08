@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@0,100..900;1,100..900&display=swap");
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
@@ -5,6 +6,19 @@
 @source "@/app";
 @source "@/lib";
 
+@theme inline {
+}
+body {
+	font-family: var(--font-work);
+	font-weight: 400;
+
+	@apply bg-primary-300 text-foreground-normal antialiased;
+}
+@layer base {
+	* {
+		font-family: var(--font-work);
+	}
+}
 :root {
 	--black: #000;
 	--white: #fff;
@@ -70,6 +84,8 @@
 }
 
 @theme inline {
+	--font-work: "Work Sans", sans-serif;
+
 	--color-*: initial;
 
 	--color-black: var(--black);
@@ -116,10 +132,6 @@
 
 html.dark {
 	color-scheme: dark;
-}
-
-body {
-	@apply bg-primary-300 text-foreground-normal antialiased;
 }
 
 /* While actively panning we mimic an "inert" UX by disabling pointer events

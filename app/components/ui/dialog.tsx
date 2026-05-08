@@ -3,7 +3,7 @@ import React from "react";
 
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils/utils";
 import { Button } from "@/components/ui/button";
 import { Close as XIcon } from "@project-lary/react-material-symbols-400-rounded";
 
