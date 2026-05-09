@@ -1,4 +1,5 @@
-import { useEditorGridStore } from "@/providers/editor/store";
+import { useEditorGridStore } from "../../../providers/editor/store";
+
 import {
 	VIEWPORT_CSS_VAR_OFFSET_X,
 	VIEWPORT_CSS_VAR_OFFSET_Y,

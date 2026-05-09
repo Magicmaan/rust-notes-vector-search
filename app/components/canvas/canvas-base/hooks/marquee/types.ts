@@ -1,6 +1,5 @@
 import type {
 	AnyCanvasElementDisplay,
-	CanvasElementContentByVariant,
 	CanvasElementVariant,
 } from "@/types";
 
@@ -25,13 +24,10 @@ export type SelectionSession = {
 export type GroupMoveSnapshotItem = {
 	id: string;
 	variant: CanvasElementVariant;
-	content: CanvasElementContentByVariant[CanvasElementVariant];
 	x: number;
 	y: number;
 	width: number;
 	height: number;
-	stat: boolean;
-	backgroundColor?: string;
 };
 
 export type GroupMoveBounds = {
@@ -43,11 +39,6 @@ export type GroupMoveBounds = {
 	pixelY: number;
 	pixelWidth: number;
 	pixelHeight: number;
-};
-
-export type GroupMoveSession = {
-	active: boolean;
-	pointerId: number;
 };
 
 export interface GroupMovableTarget {

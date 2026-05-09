@@ -7,6 +7,10 @@ type CanvasElementRendererProps = {
 	element: AnyCanvasElementDisplay;
 };
 
+function assertNever(x: never): never {
+	throw new Error(`Unhandled canvas element variant: ${JSON.stringify(x)}`);
+}
+
 export default function CanvasElementRenderer({
 	element,
 }: CanvasElementRendererProps) {
@@ -15,5 +19,7 @@ export default function CanvasElementRenderer({
 			return <CanvasTitleElement element={element} />;
 		case "note":
 			return <CanvasNoteElement element={element as NoteDisplay} />;
+		default:
+			return assertNever(element);
 	}
 }

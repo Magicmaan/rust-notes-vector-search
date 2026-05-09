@@ -14,6 +14,7 @@ import { createGridSlice } from "./slices/gridSlice";
 import { createViewportSlice } from "./slices/viewportSlice";
 import { createElementsSlice } from "./slices/elementsSlice";
 import { createUIStateSlice } from "./slices/uiStateSlice";
+import { createCacheSlice } from "./slices/cacheSlice";
 
 /**
  * Bound Zustand hook composed from all slices.
@@ -32,5 +33,8 @@ export const useEditorGridStore: UseBoundStore<StoreApi<EditorGridStoreType>> =
 
 			// UI State Slice - transient UI state
 			...createUIStateSlice(set, get, api),
+
+			// Cache Slice - transient data caching
+			...createCacheSlice(set, get, api),
 		})),
 	);

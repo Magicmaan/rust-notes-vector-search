@@ -1,8 +1,4 @@
-import {
-	NoteDisplay,
-	TitleDisplay,
-	type AnyCanvasElementDisplay,
-} from "@/types";
+import { cloneElementWithGeometry, type AnyCanvasElementDisplay } from "@/types";
 import { useEditorGridStore } from "@/providers/editor/store";
 import type {
 	GroupMoveBounds,
@@ -46,85 +42,72 @@ export function toGroupMoveBounds(
 	};
 }
 
-function buildDisplay(snapshot: GroupMoveSnapshotItem, x: number, y: number) {
-	if (snapshot.variant === "title") {
-		return new TitleDisplay({
-			id: snapshot.id,
-			x,
-			y,
-			width: snapshot.width,
-			height: snapshot.height,
-			content: snapshot.content,
-			stat: snapshot.stat,
-			backgroundColor: snapshot.backgroundColor,
-		});
-	}
-
-	return new NoteDisplay({
-		x,
-		y,
-		width: snapshot.width,
-		height: snapshot.height,
-		note: snapshot.content,
-		stat: snapshot.stat,
-		backgroundColor: snapshot.backgroundColor,
-	});
-}
-
 export function buildGroupMoveSnapshots(
 	state: ReturnType<typeof useEditorGridStore.getState>,
 ): GroupMoveSnapshotItem[] {
 	return state.selectedNoteIds
 		.map((id) => state.elements[id])
 		.filter((element): element is AnyCanvasElementDisplay => Boolean(element))
-		.map((element) => ({
-			id: element.id,
-			variant: element.variant,
-			content: element.content,
-			x: element.x,
-			y: element.y,
-			width: element.width,
-			height: element.height,
-			stat: element.stat,
-			backgroundColor: element.backgroundColor,
-		}));
+			.map((element) => ({
+				id: element.id,
+				variant: element.variant,
+				x: element.x,
+				y: element.y,
+				width: element.width,
+				height: element.height,
+			}));
 }
 
 export function createGroupMovableTarget({
 	snapshots,
 	bounds,
 	gridSize,
+	baselineElementsById,
 }: {
 	snapshots: GroupMoveSnapshotItem[];
 	bounds: GroupMoveBounds;
 	gridSize: [number, number];
+	baselineElementsById: Record<string, AnyCanvasElementDisplay>;
 }): GroupMovableTarget {
 	const [cellWidth, cellHeight] = gridSize;
 	const selectedIds = snapshots.map((item) => item.id);
+
+	const createElements = (
+		resolveGeometry: (snapshot: GroupMoveSnapshotItem) => { x: number; y: number },
+	) => {
+		return snapshots
+			.map((snapshot) => {
+				const baseline = baselineElementsById[snapshot.id];
+				if (!baseline) return null;
+				return cloneElementWithGeometry(baseline, resolveGeometry(snapshot));
+			})
+			.filter((element): element is AnyCanvasElementDisplay => Boolean(element));
+	};
 
 	return {
 		bounds,
 		selectedIds,
 		buildPreview: (deltaPixelX: number, deltaPixelY: number) => {
-			return snapshots.map((snapshot) =>
-				buildDisplay(
-					snapshot,
-					snapshot.x + deltaPixelX / cellWidth,
-					snapshot.y + deltaPixelY / cellHeight,
-				),
-			);
+			const deltaGridX = Math.round(deltaPixelX / cellWidth);
+			const deltaGridY = Math.round(deltaPixelY / cellHeight);
+			return createElements((snapshot) => ({
+				x: snapshot.x + deltaGridX,
+				y: snapshot.y + deltaGridY,
+			}));
 		},
 		commit: (resolvedGridX: number, resolvedGridY: number) => {
 			const deltaGridX = resolvedGridX - bounds.gridX;
 			const deltaGridY = resolvedGridY - bounds.gridY;
-			return snapshots.map((snapshot) =>
-				buildDisplay(snapshot, snapshot.x + deltaGridX, snapshot.y + deltaGridY),
-			);
+			return createElements((snapshot) => ({
+				x: snapshot.x + deltaGridX,
+				y: snapshot.y + deltaGridY,
+			}));
 		},
 		rollback: () => {
-			return snapshots.map((snapshot) =>
-				buildDisplay(snapshot, snapshot.x, snapshot.y),
-			);
+			return createElements((snapshot) => ({
+				x: snapshot.x,
+				y: snapshot.y,
+			}));
 		},
 	};
 }

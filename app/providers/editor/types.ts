@@ -11,8 +11,10 @@ import type {
 	UIStateSliceType,
 	ViewportSliceType,
 } from "./slices";
+import { CacheStoreType } from "./slices/cacheSlice";
 
 export type EditorGridStoreType = GridSliceType &
 	ViewportSliceType &
 	ElementsSliceType &
-	UIStateSliceType;
+	UIStateSliceType &
+	CacheStoreType;

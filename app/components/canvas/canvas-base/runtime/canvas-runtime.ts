@@ -12,20 +12,17 @@ import type {
 	FrameContext,
 	RuntimeCallbackKind,
 	RuntimeInputEvent,
+	RuntimeSnapshot,
 } from "./types";
 
 type RuntimeState = {
 	spaceHeld: boolean;
 	isPanning: boolean;
+	lockout: boolean;
 	marqueeRect: { x: number; y: number; width: number; height: number } | null;
 };
 
 type RuntimeListener = () => void;
-type RuntimeSnapshot = {
-	marqueeRect: { x: number; y: number; width: number; height: number } | null;
-	isPanning: boolean;
-	spaceHeld: boolean;
-};
 
 export class CanvasRuntime {
 	private container: HTMLDivElement | null = null;
@@ -33,6 +30,7 @@ export class CanvasRuntime {
 	private state: RuntimeState = {
 		spaceHeld: false,
 		isPanning: false,
+		lockout: false,
 		marqueeRect: null,
 	};
 	private callbacks: Record<RuntimeCallbackKind, Set<CanvasCallback>> = {
@@ -44,7 +42,6 @@ export class CanvasRuntime {
 		keyDown: new Set(),
 		keyUp: new Set(),
 		blur: new Set(),
-		focus: new Set(),
 	};
 	private listeners = new Set<RuntimeListener>();
 	private gridSize: [number, number] = [16, 16];
@@ -52,6 +49,7 @@ export class CanvasRuntime {
 		marqueeRect: null,
 		isPanning: false,
 		spaceHeld: false,
+		lockout: false,
 	};
 
 	mount(input: {
@@ -63,15 +61,17 @@ export class CanvasRuntime {
 		this.transform = input.transform;
 		this.gridSize = input.gridSize;
 		const store = useEditorGridStore.getState();
-		this.syncViewportCss({
-			offsetX: store.offsetX,
-			offsetY: store.offsetY,
-			zoomLevel: store.zoomLevel,
-		});
-		this.applyBackgroundFromStore();
-	}
+			this.syncViewportCss({
+				offsetX: store.offsetX,
+				offsetY: store.offsetY,
+				zoomLevel: store.zoomLevel,
+			});
+			this.applyBackgroundFromStore();
+			this.syncLockout(false);
+		}
 
 	unmount() {
+		this.syncLockout(false);
 		this.container = null;
 		this.transform = null;
 	}
@@ -138,6 +138,8 @@ export class CanvasRuntime {
 		return {
 			event,
 			gridSize: this.gridSize,
+			container: this.container,
+			transform: this.transform,
 			viewport: {
 				zoomLevel: store.zoomLevel,
 				offsetX: store.offsetX,
@@ -164,14 +166,16 @@ export class CanvasRuntime {
 
 		for (const operation of sorted) {
 			switch (operation.type) {
-				case "setFlag":
-					if (operation.key === "spaceHeld") {
-						this.state.spaceHeld = operation.value;
-					}
-					if (operation.key === "isPanning") {
-						this.state.isPanning = operation.value;
-					}
-					break;
+					case "setFlag":
+						if (operation.key === "spaceHeld") {
+							this.state.spaceHeld = operation.value;
+							this.state.lockout = operation.value;
+							this.syncLockout(this.state.lockout);
+						}
+						if (operation.key === "isPanning") {
+							this.state.isPanning = operation.value;
+						}
+						break;
 				case "setPanState": {
 					const store = useEditorGridStore.getState();
 					if (operation.value) {
@@ -272,11 +276,12 @@ export class CanvasRuntime {
 	}
 
 	private emitChange() {
-		this.snapshot = {
-			marqueeRect: this.state.marqueeRect,
-			isPanning: this.state.isPanning,
-			spaceHeld: this.state.spaceHeld,
-		};
+			this.snapshot = {
+				marqueeRect: this.state.marqueeRect,
+				isPanning: this.state.isPanning,
+				spaceHeld: this.state.spaceHeld,
+				lockout: this.state.lockout,
+			};
 		for (const listener of this.listeners) {
 			listener();
 		}
@@ -314,5 +319,15 @@ export class CanvasRuntime {
 			},
 			this.gridSize,
 		);
+	}
+
+	private syncLockout(lockout: boolean) {
+		if (this.container) {
+			this.container.setAttribute("data-canvas-lockout", String(lockout));
+		}
+		if (this.transform) {
+			this.transform.setAttribute("data-lockout", String(lockout));
+			this.transform.inert = lockout;
+		}
 	}
 }

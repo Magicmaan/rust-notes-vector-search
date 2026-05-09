@@ -8,6 +8,7 @@ import { useDragInteraction } from "./hooks/useDragInteraction";
 import { useResizeInteraction } from "./hooks/useResizeInteraction";
 import { CanvasElementRuntime } from "./runtime/canvas-element-runtime";
 import { selectionPlugin } from "./runtime/plugins/selection-plugin";
+import type { ElementRuntimeEvent } from "./runtime/types";
 
 function buildTickEvent() {
 	return {
@@ -25,6 +26,47 @@ function buildTickEvent() {
 	};
 }
 
+function buildRuntimePointerEvent(
+	kind: ElementRuntimeEvent["kind"],
+	e: React.PointerEvent<HTMLDivElement> | PointerEvent,
+): ElementRuntimeEvent {
+	return {
+		kind,
+		pointerId: e.pointerId,
+		clientX: e.clientX,
+		clientY: e.clientY,
+		button: e.button,
+		shiftKey: e.shiftKey,
+		ctrlKey: e.ctrlKey,
+		metaKey: e.metaKey,
+		altKey: e.altKey,
+		target: e.target,
+		timestamp: e.timeStamp,
+	};
+}
+
+function buildRuntimeBlurEvent(): ElementRuntimeEvent {
+	return {
+		kind: "blur",
+		pointerId: -1,
+		clientX: 0,
+		clientY: 0,
+		button: 0,
+		shiftKey: false,
+		ctrlKey: false,
+		metaKey: false,
+		altKey: false,
+		target: null,
+		timestamp: performance.now(),
+	};
+}
+
+function isCanvasLockoutActive(node: HTMLDivElement | null) {
+	if (!node) return false;
+	const container = node.closest("#editor-grid-container");
+	return container?.getAttribute("data-canvas-lockout") === "true";
+}
+
 export function useCanvasElementCore(
 	element: AnyCanvasElementDisplay,
 	options?: { enableResize?: boolean },
@@ -40,12 +82,21 @@ export function useCanvasElementCore(
 	const isSelected = selectedNoteIds.includes(element.id);
 	const isMultiSelected = isSelected && selectedNoteIds.length > 1;
 
-	const { updateElement, isAreaFree, findNearestFree, gridSize } =
+	const {
+		updateElement,
+		isAreaFree,
+		findOccupyingIds,
+		findNearestFree,
+		getElement,
+		gridSize,
+	} =
 		useEditorGridStore(
 			useShallow((s) => ({
 				updateElement: s.updateElement,
 				isAreaFree: s.isAreaFree,
+				findOccupyingIds: s.findOccupyingIds,
 				findNearestFree: s.findNearestFree,
+				getElement: s.getElement,
 				gridSize: s.gridSize,
 			})),
 		);
@@ -68,13 +119,19 @@ export function useCanvasElementCore(
 		() => ({
 			getViewport: () => {
 				const state = useEditorGridStore.getState();
-				return { isPanning: state.isPanning, zoomLevel: state.zoomLevel };
+				return {
+					isPanning: state.isPanning,
+					zoomLevel: state.zoomLevel,
+					lockout: isCanvasLockoutActive(wrapperRef.current),
+				};
 			},
 			updateElement,
 			isAreaFree,
+			findOccupyingIds,
 			findNearestFree,
+			getElement,
 		}),
-		[findNearestFree, isAreaFree, updateElement],
+		[findNearestFree, findOccupyingIds, getElement, isAreaFree, updateElement],
 	);
 
 	const positioning = usePositionRendering({
@@ -103,6 +160,12 @@ export function useCanvasElementCore(
 
 	const handlePointerDown = useCallback(
 		(e: React.PointerEvent<HTMLDivElement>) => {
+			const runtime = runtimeRef.current;
+			runtime?.dispatch(buildRuntimePointerEvent("pointerDown", e));
+			if (isCanvasLockoutActive(wrapperRef.current)) {
+				e.preventDefault();
+				return;
+			}
 			if (e.button === 2) {
 				if (!enableResize) {
 					e.preventDefault();
@@ -125,6 +188,24 @@ export function useCanvasElementCore(
 		return () => {
 			unregisterSelection();
 			runtime.unmount();
+		};
+	}, []);
+
+	useEffect(() => {
+		const runtime = runtimeRef.current;
+		if (!runtime) return;
+		const onPointerUp = (event: PointerEvent) =>
+			runtime.dispatch(buildRuntimePointerEvent("pointerUp", event));
+		const onPointerCancel = (event: PointerEvent) =>
+			runtime.dispatch(buildRuntimePointerEvent("pointerCancel", event));
+		const onBlur = () => runtime.dispatch(buildRuntimeBlurEvent());
+		window.addEventListener("pointerup", onPointerUp, true);
+		window.addEventListener("pointercancel", onPointerCancel, true);
+		window.addEventListener("blur", onBlur, true);
+		return () => {
+			window.removeEventListener("pointerup", onPointerUp, true);
+			window.removeEventListener("pointercancel", onPointerCancel, true);
+			window.removeEventListener("blur", onBlur, true);
 		};
 	}, []);
 

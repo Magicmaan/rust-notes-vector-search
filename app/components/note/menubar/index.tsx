@@ -46,17 +46,17 @@ function MenuPositioner({
 
 	useEffect(() => {
 		if (!container) {
-			const el = document.querySelector(`#note-${id}`) as HTMLDivElement | null;
+			const el = document.querySelector(
+				`[data-canvas-element-id="${id}"], #note-${id}`,
+			) as HTMLDivElement | null;
 
 			if (!el) {
-				console.error(`MenuPositioner: element with id "note-${id}" not found`);
+				console.error(`MenuPositioner: element for id "${id}" not found`);
 				return;
 			}
 			const h = el.querySelector('[role="menubar"]') as HTMLDivElement | null;
 			if (!h) {
-				console.error(
-					`MenuPositioner: menubar element not found in "note-${id}"`,
-				);
+				console.error(`MenuPositioner: menubar element not found for "${id}"`);
 				return;
 			}
 			setContainer(h);

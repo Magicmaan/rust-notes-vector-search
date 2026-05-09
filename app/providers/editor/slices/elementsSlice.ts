@@ -186,7 +186,9 @@ export const createElementsSlice: StateCreator<
 				return;
 			}
 			delete state.elements[id];
-			state.elementIds = state.elementIds.filter((elementId) => elementId !== id);
+			state.elementIds = state.elementIds.filter(
+				(elementId) => elementId !== id,
+			);
 			state.elementsVersion += 1;
 		});
 	},
@@ -229,6 +231,7 @@ export const createElementsSlice: StateCreator<
 		});
 	},
 
+	// Find surrounding elements
 	findOccupyingIds: (x, y, width, height, excludeIds) => {
 		if (x < 0 || y < 0 || width < 1 || height < 1) {
 			return [];
@@ -254,14 +257,10 @@ export const createElementsSlice: StateCreator<
 	},
 
 	isAreaFree: (x, y, width, height, excludeIds) => {
-		if (x < 0 || y < 0 || width < 1 || height < 1) {
-			return false;
-		}
-
 		return get().findOccupyingIds(x, y, width, height, excludeIds).length === 0;
 	},
 
-		findNearestFree: (x, y, width, height, excludeIds, maxRadius = 20) => {
+	findNearestFree: (x, y, width, height, excludeIds, maxRadius = 20) => {
 		if (!Number.isFinite(x) || !Number.isFinite(y) || width < 1 || height < 1) {
 			return null;
 		}
@@ -269,23 +268,23 @@ export const createElementsSlice: StateCreator<
 		const elements = get().elements;
 		const excludedIdSet = toExcludedIdSet(excludeIds);
 
-			function isFree(candidateX: number, candidateY: number) {
-				if (candidateX < 0 || candidateY < 0) return false;
-				for (const element of Object.values(elements)) {
-					if (excludedIdSet.has(element.id)) continue;
-					if (
-						rectanglesOverlap(
-							candidateX,
-							candidateY,
-							width,
-							height,
-							element.x,
-							element.y,
-							element.width,
-							element.height,
-						)
-					) {
-						return false;
+		function isFree(candidateX: number, candidateY: number) {
+			if (candidateX < 0 || candidateY < 0) return false;
+			for (const element of Object.values(elements)) {
+				if (excludedIdSet.has(element.id)) continue;
+				if (
+					rectanglesOverlap(
+						candidateX,
+						candidateY,
+						width,
+						height,
+						element.x,
+						element.y,
+						element.width,
+						element.height,
+					)
+				) {
+					return false;
 				}
 			}
 			return true;
@@ -301,30 +300,30 @@ export const createElementsSlice: StateCreator<
 		const startY = Math.max(0, Math.floor(y - boundedRadius));
 		const endY = Math.max(0, Math.ceil(y + boundedRadius));
 
-			for (let candidateY = startY; candidateY <= endY; candidateY++) {
-				for (let candidateX = startX; candidateX <= endX; candidateX++) {
-					if (!isFree(candidateX, candidateY)) {
-						continue;
-					}
+		for (let candidateY = startY; candidateY <= endY; candidateY++) {
+			for (let candidateX = startX; candidateX <= endX; candidateX++) {
+				if (!isFree(candidateX, candidateY)) {
+					continue;
+				}
 
-					const deltaX = candidateX - x;
-					const deltaY = candidateY - y;
-					const distanceSquared = deltaX * deltaX + deltaY * deltaY;
-					const manhattan = Math.abs(deltaX) + Math.abs(deltaY);
+				const deltaX = candidateX - x;
+				const deltaY = candidateY - y;
+				const distanceSquared = deltaX * deltaX + deltaY * deltaY;
+				const manhattan = Math.abs(deltaX) + Math.abs(deltaY);
 
 				if (
 					distanceSquared < bestDistanceSquared ||
 					(distanceSquared === bestDistanceSquared &&
-								(manhattan < bestManhattan ||
-									(manhattan === bestManhattan &&
-										(best === null ||
-											candidateY < best.y ||
-											(candidateY === best.y && candidateX < best.x)))))
-					) {
-						best = { x: candidateX, y: candidateY };
-						bestDistanceSquared = distanceSquared;
-						bestManhattan = manhattan;
-					}
+						(manhattan < bestManhattan ||
+							(manhattan === bestManhattan &&
+								(best === null ||
+									candidateY < best.y ||
+									(candidateY === best.y && candidateX < best.x)))))
+				) {
+					best = { x: candidateX, y: candidateY };
+					bestDistanceSquared = distanceSquared;
+					bestManhattan = manhattan;
+				}
 			}
 		}
 

@@ -206,7 +206,7 @@ function useLod<T>({
 	const [current, setCurrent] = React.useState<T>(steps[0]);
 
 	useEffect(() => {
-		let rootElement = window.document.documentElement;
+		const rootElement = window.document.documentElement;
 		for (const bp of breakpoints) {
 			if (target < bp) {
 				setCurrent(steps[breakpoints.indexOf(bp)]);

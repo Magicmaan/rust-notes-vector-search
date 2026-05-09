@@ -1,6 +1,5 @@
 import React, { useMemo } from "react";
 import type { NoteDisplay } from "@/types";
-import { useCanvasElementCore } from "../canvas-element/useCanvasElementCore";
 import NoteMenubar from "@/components/note/menubar";
 import { getThoughtSpaceCardMock } from "../canvas-base/mock-cards";
 import CanvasElementFrame from "../canvas-element/frame";

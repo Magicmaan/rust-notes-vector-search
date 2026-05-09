@@ -36,24 +36,24 @@ export default function CanvasElementFrame({
 	);
 
 	return (
-		// biome-ignore lint/a11y/useFocusableInteractive: <explanation>
+		// biome-ignore lint/a11y/noStaticElementInteractions: <explanation>
 		<div
 			ref={wrapperRef}
-			role="button"
 			className={clsx(
 				"absolute canvas-element-wrapper flex p-1 group",
 				frameClassName,
 			)}
-			id={`note-${element.id}`}
+			id={`canvas-element-${element.id}`}
 			data-canvas-element={element.variant}
+			data-canvas-element-id={element.id}
 			onPointerDown={handlePointerDown}
 			onDragStart={(e) => e.preventDefault()}
 			data-dragging="false"
 			data-selected={isSelected}
 			data-multi-selected={isMultiSelected}
 			data-resizing="none"
-			data-card-kind={element.variant}
-			data-card-state="default"
+			data-element-kind={element.variant}
+			data-element-state="default"
 			style={
 				{
 					...initialTransforms,

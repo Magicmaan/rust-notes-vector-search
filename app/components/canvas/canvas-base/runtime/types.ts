@@ -8,8 +8,7 @@ export type RuntimeCallbackKind =
 	| "wheel"
 	| "keyDown"
 	| "keyUp"
-	| "blur"
-	| "focus";
+	| "blur";
 
 type RuntimeInputEventBase<T extends RuntimeCallbackKind> = {
 	pointerId: number;
@@ -31,9 +30,18 @@ export type RuntimeInputEvent = RuntimeInputEventBase<RuntimeCallbackKind> & {
 	kind: RuntimeCallbackKind;
 };
 
+export type RuntimeSnapshot = {
+	marqueeRect: { x: number; y: number; width: number; height: number } | null;
+	isPanning: boolean;
+	spaceHeld: boolean;
+	lockout: boolean;
+};
+
 export type FrameContext = {
 	event: RuntimeInputEvent;
 	gridSize: [number, number];
+	container: HTMLDivElement;
+	transform: HTMLDivElement | null;
 	viewport: {
 		zoomLevel: number;
 		offsetX: number;

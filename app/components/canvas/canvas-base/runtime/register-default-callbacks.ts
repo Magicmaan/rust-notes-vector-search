@@ -1,24 +1,27 @@
 import { CanvasRuntime } from "./canvas-runtime";
-import {
-	onPanBlur,
-	onPanKeyDown,
-	onPanKeyUp,
-	onPanPointerCancel,
-	onPanPointerDown,
-	onPanPointerMove,
-	onPanPointerUp,
-} from "./callbacks/pan-callbacks";
+import { createPanCallbacks } from "./callbacks/pan-callbacks";
 import { onZoomWheel } from "./callbacks/zoom-callbacks";
-import {
-	onMarqueeBlur,
-	onMarqueeOutsidePointerDown,
-	onMarqueePointerCancel,
-	onMarqueePointerDown,
-	onMarqueePointerMove,
-	onMarqueePointerUp,
-} from "./callbacks/marquee-callbacks";
+import { createMarqueeCallbacks } from "./callbacks/marquee-callbacks";
 
 export function registerDefaultCanvasCallbacks(runtime: CanvasRuntime) {
+	const {
+		onPanBlur,
+		onPanKeyDown,
+		onPanKeyUp,
+		onPanPointerCancel,
+		onPanPointerDown,
+		onPanPointerMove,
+		onPanPointerUp,
+	} = createPanCallbacks();
+	const {
+		onMarqueeBlur,
+		onMarqueeOutsidePointerDown,
+		onMarqueePointerCancel,
+		onMarqueePointerDown,
+		onMarqueePointerMove,
+		onMarqueePointerUp,
+	} = createMarqueeCallbacks();
+
 	const cleanups = [
 		runtime.registerCallback("keyDown", onPanKeyDown),
 		runtime.registerCallback("keyUp", onPanKeyUp),

@@ -15,6 +15,7 @@ type RuntimeInput = {
 	viewport: {
 		zoomLevel: number;
 		isPanning: boolean;
+		lockout: boolean;
 	};
 	selection: {
 		isSelected: boolean;

@@ -62,6 +62,10 @@ interface ResizePlacement {
 	pixelHeight: number;
 }
 
+function rangesOverlap(startA: number, endA: number, startB: number, endB: number) {
+	return startA < endB && endA > startB;
+}
+
 /**
  * Positioning callbacks for rendering during interaction.
  * (Shared interface with drag interaction)
@@ -92,13 +96,14 @@ interface UseResizeInteractionInput {
 	store: {
 		getViewport: () => { isPanning: boolean; zoomLevel: number };
 		updateElement: (id: string, newElement: AnyCanvasElementDisplay) => void;
-		isAreaFree: (
+		findOccupyingIds: (
 			x: number,
 			y: number,
 			width: number,
 			height: number,
-			ignoreId?: string,
-		) => boolean;
+			ignoreId?: string | string[],
+		) => string[];
+		getElement: (id: string) => AnyCanvasElementDisplay | undefined;
 		findNearestFree: (
 			x: number,
 			y: number,
@@ -336,6 +341,112 @@ export function useResizeInteraction(
 		[getCandidatePixels, grid.cellHeight, grid.cellWidth],
 	);
 
+	const resolveCollisionPlacement = useCallback(
+		(
+			placement: ResizePlacement,
+			anchor: ResizeAnchor,
+			ignoreId: string,
+		): ResizePlacement => {
+			const occupyingIds = store.findOccupyingIds(
+				placement.x,
+				placement.y,
+				placement.width,
+				placement.height,
+				ignoreId,
+			);
+			if (occupyingIds.length === 0) {
+				return placement;
+			}
+
+			const next = { ...placement };
+			const fixedRight = placement.x + placement.width;
+			const fixedBottom = placement.y + placement.height;
+			let constrainedRight = next.x + next.width;
+			let constrainedLeft = next.x;
+			let constrainedBottom = next.y + next.height;
+			let constrainedTop = next.y;
+
+			// AABB side constraints:
+			// For each overlapping collider, project a blocking boundary onto the active
+			// resize axis only when the perpendicular axis overlaps.
+			// Horizontal resize uses Y-overlap; vertical resize uses X-overlap.
+			for (const id of occupyingIds) {
+				const collider = store.getElement(id);
+				if (!collider) continue;
+
+				const overlapsY = rangesOverlap(
+					next.y,
+					next.y + next.height,
+					collider.y,
+					collider.y + collider.height,
+				);
+				if (overlapsY) {
+					constrainedRight = Math.min(constrainedRight, collider.x);
+					constrainedLeft = Math.max(
+						constrainedLeft,
+						collider.x + collider.width,
+					);
+				}
+
+				const overlapsX = rangesOverlap(
+					next.x,
+					next.x + next.width,
+					collider.x,
+					collider.x + collider.width,
+				);
+				if (overlapsX) {
+					constrainedBottom = Math.min(constrainedBottom, collider.y);
+					constrainedTop = Math.max(
+						constrainedTop,
+						collider.y + collider.height,
+					);
+				}
+			}
+
+			if (anchor.horizontal === "right") {
+				next.width = clampMinDimension(
+					constrainedRight - next.x,
+					RESIZE_MIN_CELL_WIDTH,
+				);
+			} else {
+				const cappedLeft = Math.min(
+					constrainedLeft,
+					fixedRight - RESIZE_MIN_CELL_WIDTH,
+				);
+				next.x = cappedLeft;
+				next.width = clampMinDimension(
+					fixedRight - cappedLeft,
+					RESIZE_MIN_CELL_WIDTH,
+				);
+			}
+
+			if (anchor.vertical === "bottom") {
+				next.height = clampMinDimension(
+					constrainedBottom - next.y,
+					RESIZE_MIN_CELL_HEIGHT,
+				);
+			} else {
+				const cappedTop = Math.min(
+					constrainedTop,
+					fixedBottom - RESIZE_MIN_CELL_HEIGHT,
+				);
+				next.y = cappedTop;
+				next.height = clampMinDimension(
+					fixedBottom - cappedTop,
+					RESIZE_MIN_CELL_HEIGHT,
+				);
+			}
+
+			next.pixelX = next.x * grid.cellWidth;
+			next.pixelY = next.y * grid.cellHeight;
+			next.pixelWidth = next.width * grid.cellWidth;
+			next.pixelHeight = next.height * grid.cellHeight;
+
+			return next;
+		},
+		[grid.cellHeight, grid.cellWidth, store],
+	);
+
 	const finalizeSession = useCallback(
 		(shouldCommit: boolean) => {
 			if (!sessionRef.current.active) return;
@@ -348,17 +459,13 @@ export function useResizeInteraction(
 
 			if (shouldCommit && sessionRef.current.didResize) {
 				const resolved = resolvePlacementFromSession(sessionRef.current);
-				const placement =
-					resolved &&
-					store.isAreaFree(
-						resolved.x,
-						resolved.y,
-						resolved.width,
-						resolved.height,
-						current.id,
-					)
-						? resolved
-						: sessionRef.current.lastValidPlacement;
+				const placement = resolved
+					? resolveCollisionPlacement(
+							resolved,
+							sessionRef.current.anchor,
+							current.id,
+						)
+					: sessionRef.current.lastValidPlacement;
 
 				// Update width/height CSS variables directly on wrapper
 				// Note: Don't call positioning.renderAtPixelPosition() as it would overwrite size vars.
@@ -452,19 +559,20 @@ export function useResizeInteraction(
 				commitApplied: didCommit,
 			});
 		},
-		[
-			emit,
-			store,
-			positioning,
-			grid,
-			clearPointerCapture,
-			removeWindowListeners,
-			resolvePlacementFromSession,
-			clearResizeStateTimeout,
-			getResizeState,
-			setResizeHeading,
-			setResizeState,
-			wrapperRef,
+			[
+				emit,
+				store,
+				positioning,
+				grid,
+				clearPointerCapture,
+				removeWindowListeners,
+				resolvePlacementFromSession,
+				resolveCollisionPlacement,
+				clearResizeStateTimeout,
+				getResizeState,
+				setResizeHeading,
+				setResizeState,
+				wrapperRef,
 		],
 	);
 
@@ -582,26 +690,22 @@ export function useResizeInteraction(
 					rafRef.current = null;
 					const currentElement = elementRef.current;
 					const resolved = resolvePlacementFromSession(sessionRef.current);
-					const placement =
-						resolved &&
-						store.isAreaFree(
-							resolved.x,
-							resolved.y,
-							resolved.width,
-							resolved.height,
-							currentElement.id,
-						)
-							? resolved
-							: sessionRef.current.lastValidPlacement;
+					const placement = resolved
+						? resolveCollisionPlacement(
+								resolved,
+								sessionRef.current.anchor,
+								currentElement.id,
+							)
+						: sessionRef.current.lastValidPlacement;
 
 					if (resolved) {
-						const didResolveDifferFromLast =
-							resolved.x !== sessionRef.current.lastValidPlacement.x ||
-							resolved.y !== sessionRef.current.lastValidPlacement.y ||
-							resolved.width !== sessionRef.current.lastValidPlacement.width ||
-							resolved.height !== sessionRef.current.lastValidPlacement.height;
-						if (didResolveDifferFromLast && placement === resolved) {
-							sessionRef.current.lastValidPlacement = resolved;
+						const didPlacementDifferFromLast =
+							placement.x !== sessionRef.current.lastValidPlacement.x ||
+							placement.y !== sessionRef.current.lastValidPlacement.y ||
+							placement.width !== sessionRef.current.lastValidPlacement.width ||
+							placement.height !== sessionRef.current.lastValidPlacement.height;
+						if (didPlacementDifferFromLast) {
+							sessionRef.current.lastValidPlacement = placement;
 						}
 					}
 
@@ -691,6 +795,7 @@ export function useResizeInteraction(
 			removeWindowListeners,
 			resolveResizeAnchor,
 			resolvePlacementFromSession,
+			resolveCollisionPlacement,
 			clearResizeStateTimeout,
 			getResizeHeading,
 			getResizeState,
