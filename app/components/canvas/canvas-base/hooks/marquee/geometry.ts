@@ -1,4 +1,4 @@
-import type { NoteDisplay } from "@/types";
+import type { AnyCanvasElementDisplay } from "@/types";
 import type { WorldRect } from "./types";
 
 export function normalizeRect(
@@ -44,7 +44,7 @@ export function getIntersectingNoteIds({
 	gridSize,
 }: {
 	rect: WorldRect;
-	elements: Record<string, NoteDisplay>;
+	elements: Record<string, AnyCanvasElementDisplay>;
 	gridSize: [number, number];
 }) {
 	const [cellWidth, cellHeight] = gridSize;

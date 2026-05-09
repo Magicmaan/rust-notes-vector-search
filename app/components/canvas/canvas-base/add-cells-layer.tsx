@@ -1,11 +1,13 @@
 import React from "react";
 import { useCallback, useMemo } from "react";
-import { NoteDisplay, type Note as NoteType } from "@/types";
+import { NoteDisplay, TitleDisplay, type Note as NoteType } from "@/types";
 import { useEditorGridStore } from "@/providers/editor/store";
 import { useSettingsStore } from "@/providers/settings/store";
 import { getStaticAddCells } from "./static-cells";
 import { AnimatePresence, motion } from "motion/react";
 const DEFAULT_PLACEHOLDER_NOTE_SPAN = 1;
+
+type AddVariant = "note" | "title";
 
 export function AddCellButton({
 	x,
@@ -16,7 +18,7 @@ export function AddCellButton({
 	x: number;
 	y: number;
 	gridSize: [number, number];
-	onAdd: (x: number, y: number) => void;
+	onAdd: (x: number, y: number, variant: AddVariant) => void;
 }) {
 	return (
 		<AnimatePresence mode={"wait"}>
@@ -26,7 +28,7 @@ export function AddCellButton({
 				onMouseDown={(e) => e.stopPropagation()}
 				onClick={(e) => {
 					e.stopPropagation();
-					onAdd(x, y);
+					onAdd(x, y, e.altKey ? "title" : "note");
 				}}
 				className="absolute pointer-events-auto text-foreground-normal text-xs leading-none p-1 flex animate-bounce-fade-in ease-in"
 				style={{
@@ -35,6 +37,7 @@ export function AddCellButton({
 					height: gridSize[1],
 					width: gridSize[0],
 				}}
+				title="Click to add note, Alt+Click to add title"
 			>
 				<div className="w-full h-full flex-1 border border-dashed border-foreground-muted/60 bg-background-200/20 rounded-xl opacity-70 flex items-center justify-center">
 					<span className="text-foreground-muted/90 text-3xl leading-none">+</span>
@@ -68,13 +71,15 @@ export default function AddCellsLayer() {
 	}, [elements, elementsVersion]);
 
 	const addPlaceholderAtCell = useCallback(
-		(x: number, y: number) => {
+		(x: number, y: number, variant: AddVariant) => {
+			const targetWidth = variant === "title" ? 6 : DEFAULT_PLACEHOLDER_NOTE_SPAN;
+			const targetHeight = variant === "title" ? 2 : DEFAULT_PLACEHOLDER_NOTE_SPAN;
 			if (
 				!isAreaFree(
 					x,
 					y,
-					DEFAULT_PLACEHOLDER_NOTE_SPAN,
-					DEFAULT_PLACEHOLDER_NOTE_SPAN,
+					targetWidth,
+					targetHeight,
 				)
 			) {
 				return;
@@ -82,6 +87,25 @@ export default function AddCellsLayer() {
 
 			const id = createId();
 			const now = new Date();
+
+			if (variant === "title") {
+				addElement(
+					new TitleDisplay({
+						id,
+						x,
+						y,
+						width: targetWidth,
+						height: targetHeight,
+						content: {
+							text: "New Title",
+							sizePx: 48,
+							weight: 750,
+						},
+					}),
+				);
+				return;
+			}
+
 			const placeholderNote: NoteType = {
 				id,
 				title: "Placeholder Note",

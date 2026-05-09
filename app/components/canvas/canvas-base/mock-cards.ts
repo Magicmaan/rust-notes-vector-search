@@ -1,4 +1,9 @@
-import { NoteDisplay, type Note as NoteType } from "@/types";
+import {
+	NoteDisplay,
+	TitleDisplay,
+	type AnyCanvasElementDisplay,
+	type Note as NoteType,
+} from "@/types";
 
 export type CanvasCardIconKey =
 	| "target"
@@ -232,10 +237,9 @@ export function getThoughtSpaceCardMock(id: string): CanvasCardMock | undefined 
 
 export function buildInitialThoughtSpaceDisplays(
 	defaultNoteColor: string,
-): NoteDisplay[] {
+): AnyCanvasElementDisplay[] {
 	const now = new Date();
-
-	return thoughtSpaceCardMocks.map((card) => {
+	const noteCards = thoughtSpaceCardMocks.map((card) => {
 		const note: NoteType = {
 			id: card.id,
 			title: card.title,
@@ -254,4 +258,19 @@ export function buildInitialThoughtSpaceDisplays(
 			backgroundColor: card.backgroundColor ?? defaultNoteColor,
 		});
 	});
+
+	const titleCard = new TitleDisplay({
+		id: "title-hero",
+		x: 6,
+		y: 3,
+		width: 14,
+		height: 2,
+		content: {
+			text: "Thoughtspace",
+			sizePx: 64,
+			weight: 800,
+		},
+	});
+
+	return [titleCard, ...noteCards];
 }

@@ -21,10 +21,23 @@
 	);
 }
 
-#editor-grid-container::before {
-	content: "";
-	position: absolute;
-	inset: 0;
+.canvas-grid-background {
+	background:
+		radial-gradient(
+			circle at 15% -20%,
+			color-mix(in oklch, var(--accent-cool-400), transparent 80%) 0%,
+			transparent 34%
+		),
+		radial-gradient(
+			circle at 92% 120%,
+			color-mix(in oklch, var(--accent-cool-300), transparent 88%) 0%,
+			transparent 44%
+		),
+		color-mix(in oklch, var(--background-500), black 8%);
+	z-index: 0;
+}
+
+.canvas-grid-background__dots {
 	background-image: radial-gradient(
 		circle at 0 0,
 		var(--grid-dot-color) var(--grid-dot-core-size),
@@ -47,10 +60,7 @@
 	z-index: 0;
 }
 
-#editor-grid-container::after {
-	content: "";
-	position: absolute;
-	inset: 0;
+.canvas-grid-background__vignette {
 	background: radial-gradient(
 		circle at center,
 		transparent var(--grid-vignette-inner-stop),
@@ -59,21 +69,6 @@
 	opacity: var(--grid-vignette-opacity);
 	pointer-events: none;
 	z-index: 0;
-}
-
-.thoughtspace-editor-grid {
-	background:
-		radial-gradient(
-			circle at 15% -20%,
-			color-mix(in oklch, var(--accent-cool-400), transparent 80%) 0%,
-			transparent 34%
-		),
-		radial-gradient(
-			circle at 92% 120%,
-			color-mix(in oklch, var(--accent-cool-300), transparent 88%) 0%,
-			transparent 44%
-		),
-		color-mix(in oklch, var(--background-500), black 8%);
 }
 
 .ts-minimap {

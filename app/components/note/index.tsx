@@ -2,8 +2,8 @@ import React from "react";
 import { useEditorGridStore } from "@/providers/editor/store";
 import { memo, useCallback } from "react";
 import { useNavigate, useParams } from "react-router";
-import type { NoteDisplay } from "@/types";
-import NotePreview from "@/components/canvas/elements/note";
+import type { AnyCanvasElementDisplay } from "@/types";
+import CanvasElementRenderer from "@/components/canvas/canvas-element";
 import NoteHeader from "./header";
 import NoteContent from "./content";
 import { ScrollArea } from "../ui/scroll-area";
@@ -20,7 +20,7 @@ function Note({ id: _id, fullscreen }: NoteProps) {
 	const selectElement = useCallback(
 		(
 			s: ReturnType<typeof useEditorGridStore.getState>,
-		): NoteDisplay | undefined => (id ? s.elements[id] : undefined),
+		): AnyCanvasElementDisplay | undefined => (id ? s.elements[id] : undefined),
 		[id],
 	);
 
@@ -36,7 +36,7 @@ function Note({ id: _id, fullscreen }: NoteProps) {
 	}
 
 	if (!fullscreen) {
-		return <NotePreview element={elem} />;
+		return <CanvasElementRenderer element={elem} />;
 	}
 	return (
 		<div

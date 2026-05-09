@@ -1,4 +1,8 @@
-import type { NoteDisplay } from "@/types";
+import type {
+	AnyCanvasElementDisplay,
+	CanvasElementContentByVariant,
+	CanvasElementVariant,
+} from "@/types";
 
 export type WorldRect = {
 	x: number;
@@ -20,11 +24,12 @@ export type SelectionSession = {
 
 export type GroupMoveSnapshotItem = {
 	id: string;
+	variant: CanvasElementVariant;
+	content: CanvasElementContentByVariant[CanvasElementVariant];
 	x: number;
 	y: number;
 	width: number;
 	height: number;
-	note: NoteDisplay["note"];
 	stat: boolean;
 	backgroundColor?: string;
 };
@@ -48,7 +53,7 @@ export type GroupMoveSession = {
 export interface GroupMovableTarget {
 	bounds: GroupMoveBounds;
 	selectedIds: string[];
-	buildPreview: (deltaPixelX: number, deltaPixelY: number) => NoteDisplay[];
-	commit: (resolvedGridX: number, resolvedGridY: number) => NoteDisplay[];
-	rollback: () => NoteDisplay[];
+	buildPreview: (deltaPixelX: number, deltaPixelY: number) => AnyCanvasElementDisplay[];
+	commit: (resolvedGridX: number, resolvedGridY: number) => AnyCanvasElementDisplay[];
+	rollback: () => AnyCanvasElementDisplay[];
 }

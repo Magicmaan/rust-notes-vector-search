@@ -2,20 +2,18 @@ import React from "react";
 import { clsx } from "clsx";
 import { useCallback, useEffect, useRef } from "react";
 import Note from "@/components/note";
-import { useEventBus, useEventListener } from "@/events";
 import { useEditorGridStore } from "@/providers/editor/store";
 import CanvasChromeOverlay from "./chrome-overlay";
-import { useMarqueeSelection } from "./hooks/useMarqueeSelection";
-import { applyCanvasBackgroundCssVariables } from "../elements/background/grid-background";
-import { useCanvasPanEvents } from "./hooks/useCanvasPanEvents";
-import { useCanvasZoomEvents } from "./hooks/useCanvasZoomEvents";
-import { useSpacePanSession } from "./hooks/useSpacePanSession";
+import { useCanvasRuntime } from "./hooks/useCanvasRuntime";
+import CanvasGridBackgroundElement from "../elements/background";
+import { getChildrenWithData } from "@/lib/utils/utils";
 
 type ViewportSize = {
 	width: number;
 	height: number;
 };
 
+// The Canvas element renders the canvas state
 export default function Canvas({ children }: { children?: React.ReactNode }) {
 	const ref = useRef<HTMLDivElement>(null);
 	const transformRef = useRef<HTMLDivElement>(null);
@@ -24,28 +22,28 @@ export default function Canvas({ children }: { children?: React.ReactNode }) {
 	const setViewportSize = useEditorGridStore((s) => s.setViewportSize);
 	const elementIds = useEditorGridStore((s) => s.elementIds);
 
-	const emit = useEventBus().emit;
-	const { marqueeRect, handlePointerDownCapture } = useMarqueeSelection({
-		containerRef: ref,
-		transformRef,
-	});
-
-	useCanvasPanEvents({
+	const runtimeSnapshot = useCanvasRuntime({
 		containerRef: ref,
 		transformRef,
 		gridSize,
 	});
 
-	useCanvasZoomEvents({
-		containerRef: ref,
-		transformRef,
-		gridSize,
-	});
+	// get children with data attribute layer
+	const [baseLayerChildren, overlayLayerChildren] = React.useMemo(() => {
+		const base: React.ReactNode[] = [];
+		const overlay: React.ReactNode[] = [];
 
-	useSpacePanSession({
-		containerRef: ref,
-		emit,
-	});
+		const [overlayLayerChildren, remainingChildren] = getChildrenWithData(
+			children,
+			"data-layer",
+			"1",
+		);
+
+		base.push(...remainingChildren);
+		overlay.push(...overlayLayerChildren);
+
+		return [base, overlay];
+	}, [children]);
 
 	const syncViewportSize = useCallback(() => {
 		if (!ref.current) {
@@ -74,10 +72,6 @@ export default function Canvas({ children }: { children?: React.ReactNode }) {
 		setViewportSize(nextSize);
 	}, [setViewportSize]);
 
-	useEventListener("canvas:viewport:resize", () => {
-		syncViewportSize();
-	});
-
 	useEffect(() => {
 		syncViewportSize();
 		if (!ref.current) {
@@ -87,12 +81,7 @@ export default function Canvas({ children }: { children?: React.ReactNode }) {
 		const resizeObserver = new ResizeObserver(syncViewportSize);
 		resizeObserver.observe(ref.current);
 
-		const onWindowResize = () => {
-			emit("canvas:viewport:resize", {
-				width: window.innerWidth,
-				height: window.innerHeight,
-			});
-		};
+		const onWindowResize = () => syncViewportSize();
 
 		window.addEventListener("resize", onWindowResize);
 
@@ -100,61 +89,25 @@ export default function Canvas({ children }: { children?: React.ReactNode }) {
 			resizeObserver.disconnect();
 			window.removeEventListener("resize", onWindowResize);
 		};
-	}, [emit, syncViewportSize]);
-
-	// background is now managed by InfiniteBackground component
-
-	const handleWheel = useCallback(
-		(e: React.WheelEvent<HTMLDivElement>) => {
-			if (!ref.current) {
-				return;
-			}
-
-			const rect = ref.current.getBoundingClientRect();
-			const pointerX = e.clientX - rect.left;
-			const pointerY = e.clientY - rect.top;
-			const stepCount = e.deltaY === 0 ? 0 : e.deltaY < 0 ? 1 : -1;
-			emit("canvas:zoom:wheel", {
-				pointerX,
-				pointerY,
-				stepCount,
-			});
-		},
-		[emit],
-	);
-
-	// background is updated lazily via events but its applied on mount to ensure it has a good default.
-	// see useCanvasPanEvents & useCanvasZoomEvents for updates on interaction
-	useEffect(() => {
-		const state = useEditorGridStore.getState();
-		applyCanvasBackgroundCssVariables(
-			ref.current,
-			{
-				zoomLevel: state.zoomLevel,
-				offsetX: state.offsetX,
-				offsetY: state.offsetY,
-			},
-			gridSize,
-		);
-	}, [gridSize]);
-
-	// canvas zoom is handled through useCanvasZoomEvents, this updates the zoom lazily and puts it into css variables --zoom-level
-	// this same mechanism is used for panning inside useCanvasPanEvents, where offsetX and offsetY are updated lazily and put into --grid-offset-x and --grid-offset-y
+	}, [syncViewportSize]);
 
 	return (
 		<div className="h-full w-full relative overflow-visible pointer-events-auto">
+			{/** biome-ignore lint/a11y/noStaticElementInteractions: <explanation> */}
 			<div
 				ref={ref}
 				className={clsx(
-					"h-full w-full relative bg-(--canvas-background) overflow-hidden thoughtspace-editor-grid",
+					"h-full w-full relative bg-(--canvas-background) overflow-hidden",
 				)}
 				id="editor-grid-container"
-				onWheel={handleWheel}
-				onPointerDownCapture={handlePointerDownCapture}
+				onContextMenu={(event) => {
+					event.preventDefault();
+				}}
 				style={{
 					touchAction: "none",
 				}}
 			>
+				<CanvasGridBackgroundElement />
 				<div
 					id="editor-grid-transform"
 					ref={transformRef}
@@ -164,7 +117,7 @@ export default function Canvas({ children }: { children?: React.ReactNode }) {
 							transform: `translate3d(var(--grid-offset-x), var(--grid-offset-y), 0) scale(var(--zoom-level, 1))`,
 							transformOrigin: "0 0",
 							zIndex: 1,
-							"--inverse-zoom": "calc(1 / (1 + var(--zoom-level, 1)))",
+							"--inverse-zoom": "calc(1 / var(--zoom-level, 1))",
 						} as React.CSSProperties
 					}
 				>
@@ -173,20 +126,32 @@ export default function Canvas({ children }: { children?: React.ReactNode }) {
 							<Note id={id} key={id} fullscreen={false} />
 						))}
 					</div>
-					{marqueeRect ? (
+					{runtimeSnapshot.marqueeRect ? (
 						<div
 							className="pointer-events-none absolute z-15 rounded-[10px] border border-[color-mix(in_oklch,var(--accent-cool-400),white_18%)] [background:color-mix(in_oklch,var(--accent-cool-400),transparent_82%)] [box-shadow:0_0_0_1px_color-mix(in_oklch,var(--accent-cool-300),transparent_70%),inset_0_0_0_1px_color-mix(in_oklch,var(--accent-cool-300),transparent_78%)]"
 							style={{
-								left: `${marqueeRect.x}px`,
-								top: `${marqueeRect.y}px`,
-								width: `${marqueeRect.width}px`,
-								height: `${marqueeRect.height}px`,
+								left: `${runtimeSnapshot.marqueeRect.x}px`,
+								top: `${runtimeSnapshot.marqueeRect.y}px`,
+								width: `${runtimeSnapshot.marqueeRect.width}px`,
+								height: `${runtimeSnapshot.marqueeRect.height}px`,
 							}}
 						/>
 					) : null}
 				</div>
 				<CanvasChromeOverlay />
-				{children}
+				{baseLayerChildren}
+				<div className="absolute inset-0 z-[120] pointer-events-none">
+					<div
+						className={clsx(
+							"h-full w-full transition-opacity duration-200 hover:opacity-60",
+							overlayLayerChildren.length > 0
+								? "pointer-events-auto"
+								: "pointer-events-none",
+						)}
+					>
+						{overlayLayerChildren}
+					</div>
+				</div>
 			</div>
 		</div>
 	);

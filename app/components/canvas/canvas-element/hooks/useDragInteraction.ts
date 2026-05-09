@@ -1,6 +1,6 @@
 import { useCallback, useRef, useEffect } from "react";
-import { useEventListener, useEventBus } from "@/events";
-import { NoteDisplay } from "../../../types";
+import { useEventBus } from "@/events";
+import { cloneElementWithGeometry, type AnyCanvasElementDisplay } from "@/types";
 import type { GridMetrics } from "./useGridMetrics";
 import { resolveMovementCommit } from "@/lib/movement-commit";
 import { startManagedPointerDragSession } from "@/lib/managed-pointer-drag-session";
@@ -33,11 +33,11 @@ interface DragInteraction {
 
 interface UseDragInteractionInput {
 	wrapperRef: React.RefObject<HTMLDivElement | null>;
-	element: NoteDisplay;
+	element: AnyCanvasElementDisplay;
 	grid: GridMetrics;
 	store: {
 		getViewport: () => { isPanning: boolean; zoomLevel: number };
-		updateElement: (id: string, newElement: NoteDisplay) => void;
+		updateElement: (id: string, newElement: AnyCanvasElementDisplay) => void;
 		isAreaFree: (
 			x: number,
 			y: number,
@@ -129,15 +129,7 @@ export function useDragInteraction(
 					);
 					store.updateElement(
 						current.id,
-						new NoteDisplay({
-							x: result.resolvedGridX,
-							y: result.resolvedGridY,
-							width: current.width,
-							height: current.height,
-							note: current.note,
-							stat: current.stat,
-							backgroundColor: current.backgroundColor,
-						}),
+						cloneElementWithGeometry(current, { x: result.resolvedGridX, y: result.resolvedGridY }),
 					);
 					didCommit = true;
 				}
@@ -174,8 +166,11 @@ export function useDragInteraction(
 
 	const handlePointerDown = useCallback(
 		(e: React.PointerEvent<HTMLDivElement>) => {
-			// Ignore if canvas is being panned (prefer external pan action over element drag)
-			if (store.getViewport().isPanning) return;
+			// Guard by explicit gesture intent: while Space is held, canvas pan owns drag.
+			// This avoids false negatives when store-level isPanning gets temporarily stale.
+			if (e.nativeEvent instanceof PointerEvent && e.nativeEvent.getModifierState("Space")) {
+				return;
+			}
 			e.stopPropagation();
 
 			// Only handle primary (left) mouse button or first touch

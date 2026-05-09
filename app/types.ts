@@ -1,8 +1,5 @@
 import { Vector2D, type Vector2DLike } from "@/lib/utils/math";
 
-/**
- * Simple Rectangle class for geometry calculations
- */
 class Rectangle {
 	x: number;
 	y: number;
@@ -30,36 +27,45 @@ export type Note = {
 	updatedAt: Date;
 };
 
-class NoteDisplay extends Rectangle {
-	id: string;
+export type CanvasElementVariant = "note" | "title";
+
+export type CanvasTitleContent = {
+	text: string;
+	sizePx?: number;
+	weight?: number;
+};
+
+export type CanvasElementContentByVariant = {
 	note: Note;
-	stat: boolean = false;
+	title: CanvasTitleContent;
+};
+
+type CanvasElementConstructorInput<T extends CanvasElementVariant> = {
+	id: string;
+	variant: T;
+	content: CanvasElementContentByVariant[T];
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	stat?: boolean;
 	backgroundColor?: string;
-	// Geometry values are grid units and spans, not absolute pixels.
-	// x/y represent the top-left grid coordinate.
-	// width/height represent cell spans.
-	constructor({
-		x,
-		y,
-		width,
-		height,
-		note,
-		stat = false,
-		backgroundColor,
-	}: {
-		x: number;
-		y: number;
-		width: number;
-		height: number;
-		note: Note;
-		stat?: boolean;
-		backgroundColor?: string;
-	}) {
-		super({ x, y, width, height });
-		this.id = note.id;
-		this.note = note;
-		this.stat = stat;
-		this.backgroundColor = backgroundColor;
+};
+
+class CanvasElementDisplay<V extends CanvasElementVariant> extends Rectangle {
+	id: string;
+	variant: V;
+	content: CanvasElementContentByVariant[V];
+	stat: boolean;
+	backgroundColor?: string;
+
+	constructor(input: CanvasElementConstructorInput<V>) {
+		super({ x: input.x, y: input.y, width: input.width, height: input.height });
+		this.id = input.id;
+		this.variant = input.variant;
+		this.content = input.content;
+		this.stat = input.stat ?? false;
+		this.backgroundColor = input.backgroundColor;
 	}
 
 	center(): Vector2D {
@@ -88,4 +94,106 @@ class NoteDisplay extends Rectangle {
 	}
 }
 
-export { NoteDisplay };
+export type AnyCanvasElementDisplay =
+	| CanvasElementDisplay<"note">
+	| CanvasElementDisplay<"title">;
+
+class NoteDisplay extends CanvasElementDisplay<"note"> {
+	constructor({
+		x,
+		y,
+		width,
+		height,
+		note,
+		stat = false,
+		backgroundColor,
+	}: {
+		x: number;
+		y: number;
+		width: number;
+		height: number;
+		note: Note;
+		stat?: boolean;
+		backgroundColor?: string;
+	}) {
+		super({
+			id: note.id,
+			variant: "note",
+			content: note,
+			x,
+			y,
+			width,
+			height,
+			stat,
+			backgroundColor,
+		});
+	}
+
+	get note(): Note {
+		return this.content;
+	}
+}
+
+class TitleDisplay extends CanvasElementDisplay<"title"> {
+	constructor({
+		id,
+		x,
+		y,
+		width,
+		height,
+		content,
+		stat = false,
+		backgroundColor,
+	}: {
+		id: string;
+		x: number;
+		y: number;
+		width: number;
+		height: number;
+		content: CanvasTitleContent;
+		stat?: boolean;
+		backgroundColor?: string;
+	}) {
+		super({
+			id,
+			variant: "title",
+			content,
+			x,
+			y,
+			width,
+			height,
+			stat,
+			backgroundColor,
+		});
+	}
+}
+
+export function cloneElementWithGeometry(
+	element: AnyCanvasElementDisplay,
+	geometry: { x: number; y: number; width?: number; height?: number },
+): AnyCanvasElementDisplay {
+	if (element.variant === "title") {
+		return new TitleDisplay({
+			id: element.id,
+			x: geometry.x,
+			y: geometry.y,
+			width: geometry.width ?? element.width,
+			height: geometry.height ?? element.height,
+			content: element.content,
+			stat: element.stat,
+			backgroundColor: element.backgroundColor,
+		});
+	}
+
+	return new NoteDisplay({
+		x: geometry.x,
+		y: geometry.y,
+		width: geometry.width ?? element.width,
+		height: geometry.height ?? element.height,
+		note: element.content,
+		stat: element.stat,
+		backgroundColor: element.backgroundColor,
+	});
+}
+
+export { CanvasElementDisplay, NoteDisplay, TitleDisplay };

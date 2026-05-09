@@ -1,4 +1,4 @@
-import type { NoteDisplay } from "@/types";
+import type { AnyCanvasElementDisplay } from "@/types";
 
 const NEIGHBOR_OFFSETS = [
 	[-1, 0],
@@ -35,7 +35,9 @@ function toCoordinates(coords: CoordinateSet) {
 	return result;
 }
 
-export function getStaticAddCells(elements: Record<string, NoteDisplay>) {
+export function getStaticAddCells(
+	elements: Record<string, AnyCanvasElementDisplay>,
+) {
 	const occupied: CoordinateSet = new Map();
 
 	for (const element of Object.values(elements)) {

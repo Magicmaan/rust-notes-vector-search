@@ -1,6 +1,6 @@
 import { useCallback, useRef, useEffect } from "react";
 import { useEventBus } from "@/events";
-import { NoteDisplay } from "../../../types";
+import { cloneElementWithGeometry, type AnyCanvasElementDisplay } from "@/types";
 import type { GridMetrics } from "./useGridMetrics";
 
 // Constants for resize interaction behavior
@@ -87,11 +87,11 @@ interface ResizeInteraction {
  */
 interface UseResizeInteractionInput {
 	wrapperRef: React.RefObject<HTMLDivElement | null>;
-	element: NoteDisplay;
+	element: AnyCanvasElementDisplay;
 	grid: GridMetrics;
 	store: {
 		getViewport: () => { isPanning: boolean; zoomLevel: number };
-		updateElement: (id: string, newElement: NoteDisplay) => void;
+		updateElement: (id: string, newElement: AnyCanvasElementDisplay) => void;
 		isAreaFree: (
 			x: number,
 			y: number,
@@ -391,14 +391,11 @@ export function useResizeInteraction(
 				) {
 					store.updateElement(
 						current.id,
-						new NoteDisplay({
+						cloneElementWithGeometry(current, {
 							x: placement.x,
 							y: placement.y,
 							width: placement.width,
 							height: placement.height,
-							note: current.note,
-							stat: current.stat,
-							backgroundColor: current.backgroundColor,
 						}),
 					);
 					didCommit = true;
@@ -473,8 +470,14 @@ export function useResizeInteraction(
 
 	const handlePointerDown = useCallback(
 		(e: React.PointerEvent<HTMLDivElement>) => {
-			// Ignore if canvas is being panned (prefer external pan action over element resize)
-			if (store.getViewport().isPanning) return;
+			// Guard by explicit gesture intent: while Space is held, canvas pan owns resize.
+			// This avoids false negatives when store-level isPanning gets temporarily stale.
+			if (
+				e.nativeEvent instanceof PointerEvent &&
+				e.nativeEvent.getModifierState("Space")
+			) {
+				return;
+			}
 
 			// Only handle secondary (right) mouse button for resize
 			// Allows drag hook to handle primary button without interference

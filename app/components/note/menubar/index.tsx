@@ -212,7 +212,7 @@ export default function NoteMenubar({ element }: { element: NoteDisplay }) {
 				return;
 			}
 			const noteSurface = noteElement.querySelector(
-				".note-surface",
+				".canvas-element-content",
 			) as HTMLButtonElement | null;
 			if (!noteSurface) {
 				applyColor();
@@ -295,6 +295,7 @@ export default function NoteMenubar({ element }: { element: NoteDisplay }) {
 
 	return (
 		<div
+			data-slot="menubar"
 			style={
 				{
 					transform: `scale(var(--inverse-zoom))`,

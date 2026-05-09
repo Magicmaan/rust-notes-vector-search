@@ -1,4 +1,8 @@
-import { NoteDisplay } from "@/types";
+import {
+	NoteDisplay,
+	TitleDisplay,
+	type AnyCanvasElementDisplay,
+} from "@/types";
 import { useEditorGridStore } from "@/providers/editor/store";
 import type {
 	GroupMoveBounds,
@@ -43,12 +47,25 @@ export function toGroupMoveBounds(
 }
 
 function buildDisplay(snapshot: GroupMoveSnapshotItem, x: number, y: number) {
+	if (snapshot.variant === "title") {
+		return new TitleDisplay({
+			id: snapshot.id,
+			x,
+			y,
+			width: snapshot.width,
+			height: snapshot.height,
+			content: snapshot.content,
+			stat: snapshot.stat,
+			backgroundColor: snapshot.backgroundColor,
+		});
+	}
+
 	return new NoteDisplay({
 		x,
 		y,
 		width: snapshot.width,
 		height: snapshot.height,
-		note: snapshot.note,
+		note: snapshot.content,
 		stat: snapshot.stat,
 		backgroundColor: snapshot.backgroundColor,
 	});
@@ -59,14 +76,15 @@ export function buildGroupMoveSnapshots(
 ): GroupMoveSnapshotItem[] {
 	return state.selectedNoteIds
 		.map((id) => state.elements[id])
-		.filter((element): element is NoteDisplay => Boolean(element))
+		.filter((element): element is AnyCanvasElementDisplay => Boolean(element))
 		.map((element) => ({
 			id: element.id,
+			variant: element.variant,
+			content: element.content,
 			x: element.x,
 			y: element.y,
 			width: element.width,
 			height: element.height,
-			note: element.note,
 			stat: element.stat,
 			backgroundColor: element.backgroundColor,
 		}));
@@ -100,11 +118,7 @@ export function createGroupMovableTarget({
 			const deltaGridX = resolvedGridX - bounds.gridX;
 			const deltaGridY = resolvedGridY - bounds.gridY;
 			return snapshots.map((snapshot) =>
-				buildDisplay(
-					snapshot,
-					snapshot.x + deltaGridX,
-					snapshot.y + deltaGridY,
-				),
+				buildDisplay(snapshot, snapshot.x + deltaGridX, snapshot.y + deltaGridY),
 			);
 		},
 		rollback: () => {

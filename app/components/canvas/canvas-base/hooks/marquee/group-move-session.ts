@@ -3,7 +3,7 @@ import { resolveMovementCommit } from "@/lib/movement-commit";
 import { DRAG_THRESHOLD_PX } from "@/lib/drag-config";
 import { startManagedPointerDragSession } from "@/lib/managed-pointer-drag-session";
 import { useEditorGridStore } from "@/providers/editor/store";
-import type { NoteDisplay } from "@/types";
+import type { AnyCanvasElementDisplay } from "@/types";
 import { createGroupMovableTarget } from "./snapshots";
 import type {
 	GroupMoveBounds,
@@ -36,7 +36,7 @@ export function startGroupMoveMode({
 	groupMoveSessionRef: React.MutableRefObject<GroupMoveSession>;
 	clearDragSession: () => void;
 	dragSessionCleanupRef: React.MutableRefObject<(() => void) | null>;
-	updateElementsBulk: (elements: NoteDisplay[]) => void;
+	updateElementsBulk: (elements: AnyCanvasElementDisplay[]) => void;
 	setActiveMarqueeRect: (rect: WorldRect | null) => void;
 	setCommittedMarqueeRect: (rect: WorldRect | null) => void;
 	resetGroupMoveSession: () => void;

@@ -8,7 +8,7 @@
  */
 
 import type { StateCreator } from "zustand";
-import type { NoteDisplay } from "@/types";
+import type { AnyCanvasElementDisplay } from "@/types";
 import type { EditorGridStoreType } from "../types";
 
 /**
@@ -17,7 +17,7 @@ import type { EditorGridStoreType } from "../types";
  */
 export interface ElementsSliceState {
 	/** Map of element ID to element (for O(1) lookups) */
-	elements: Record<string, NoteDisplay>;
+	elements: Record<string, AnyCanvasElementDisplay>;
 
 	/** Stable list of element IDs for rendering order without per-selector allocations */
 	elementIds: string[];
@@ -36,26 +36,26 @@ export interface ElementsSliceActions {
 	 * Clears element map
 	 * @param elements Array of note display elements
 	 */
-	setElements: (elements: NoteDisplay[]) => void;
+	setElements: (elements: AnyCanvasElementDisplay[]) => void;
 
 	/**
 	 * Add a single element to the tree
 	 * @param element Note element to add
 	 */
-	addElement: (element: NoteDisplay) => void;
+	addElement: (element: AnyCanvasElementDisplay) => void;
 
 	/**
 	 * Add multiple elements at once
 	 * @param elements Array of elements to add
 	 */
-	addElements: (elements: NoteDisplay[]) => void;
+	addElements: (elements: AnyCanvasElementDisplay[]) => void;
 
 	/**
 	 * Retrieve element by ID
 	 * @param id Element ID
 	 * @returns The element or undefined if not found
 	 */
-	getElement: (id: string) => NoteDisplay | undefined;
+	getElement: (id: string) => AnyCanvasElementDisplay | undefined;
 
 	/**
 	 * Delete element by ID
@@ -69,13 +69,13 @@ export interface ElementsSliceActions {
 	 * @param id Element ID
 	 * @param updatedElement Updated element with new position/dimensions
 	 */
-	updateElement: (id: string, updatedElement: NoteDisplay) => void;
+	updateElement: (id: string, updatedElement: AnyCanvasElementDisplay) => void;
 
 	/**
 	 * Update multiple elements atomically in a single transaction.
 	 * @param updatedElements Updated elements keyed by existing ids
 	 */
-	updateElementsBulk: (updatedElements: NoteDisplay[]) => void;
+	updateElementsBulk: (updatedElements: AnyCanvasElementDisplay[]) => void;
 
 	/**
 	 * Check whether a target rectangle in grid units is free.
@@ -135,7 +135,7 @@ export const createElementsSlice: StateCreator<
 	elementsVersion: 0,
 
 	// Actions
-	setElements: (elements: NoteDisplay[]) => {
+	setElements: (elements: AnyCanvasElementDisplay[]) => {
 		set((state) => {
 			state.elements = {};
 			state.elementIds = [];
@@ -151,7 +151,7 @@ export const createElementsSlice: StateCreator<
 		});
 	},
 
-	addElement: (element: NoteDisplay) => {
+	addElement: (element: AnyCanvasElementDisplay) => {
 		set((state) => {
 			if (!state.elements[element.id]) {
 				state.elementIds.push(element.id);
@@ -161,7 +161,7 @@ export const createElementsSlice: StateCreator<
 		});
 	},
 
-	addElements: (elements: NoteDisplay[]) => {
+	addElements: (elements: AnyCanvasElementDisplay[]) => {
 		set((state) => {
 			elements.forEach((element) => {
 				if (!state.elements[element.id]) {
@@ -191,7 +191,7 @@ export const createElementsSlice: StateCreator<
 		});
 	},
 
-	updateElement: (id: string, updatedElement: NoteDisplay) => {
+	updateElement: (id: string, updatedElement: AnyCanvasElementDisplay) => {
 		set((state) => {
 			if (!state.elements[id]) {
 				console.error(
@@ -212,7 +212,7 @@ export const createElementsSlice: StateCreator<
 		});
 	},
 
-	updateElementsBulk: (updatedElements: NoteDisplay[]) => {
+	updateElementsBulk: (updatedElements: AnyCanvasElementDisplay[]) => {
 		set((state) => {
 			let changed = false;
 			for (const updatedElement of updatedElements) {

@@ -42,10 +42,6 @@ export function useGridMetrics(input: UseGridMetricsInput): GridMetrics {
 		() => Math.max(1, gridSizeHeight || DEFAULT_GRID_SIZE),
 		[gridSizeHeight],
 	);
-	console.log("useGridMetrics", {
-		cellWidth,
-		cellHeight,
-	});
 
 	const pixelSize = useMemo(
 		() => t2d([elementWidth * cellWidth, elementHeight * cellHeight]),

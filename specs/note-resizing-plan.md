@@ -170,7 +170,7 @@ const resize = useResizeInteraction({
 
 ### Cursor Feedback
 ```css
-.note {
+.canvas-element-wrapper{
   /* Default cursor during normal interaction */
   cursor: grab;
 }
