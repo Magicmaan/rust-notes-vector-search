@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { CanvasRuntime } from "../runtime/canvas-runtime";
-import { registerDefaultCanvasCallbacks } from "../runtime/register-default-callbacks";
-import type { RuntimeInputEvent } from "../runtime/types";
+import type { RuntimeInputEvent, RuntimeSnapshot } from "../runtime/types";
 
 function toRuntimeEventFromPointer(
 	kind: RuntimeInputEvent["kind"],
@@ -93,7 +92,7 @@ export function useCanvasRuntime({
 	containerRef: React.RefObject<HTMLDivElement | null>;
 	transformRef: React.RefObject<HTMLDivElement | null>;
 	gridSize: [number, number];
-}) {
+}): RuntimeSnapshot {
 	const runtime = useMemo(() => new CanvasRuntime(), []);
 
 	const snapshot = useSyncExternalStore(
@@ -102,6 +101,8 @@ export function useCanvasRuntime({
 		() => runtime.getSnapshot(),
 	);
 
+	// mount runtime events
+	// can definitely be done better lol. AI
 	useEffect(() => {
 		const container = containerRef.current;
 		const transform = transformRef.current;
@@ -112,7 +113,6 @@ export function useCanvasRuntime({
 			transform,
 			gridSize,
 		});
-		const unregisterCallbacks = registerDefaultCanvasCallbacks(runtime);
 
 		const onPointerDown = (event: PointerEvent) =>
 			runtime.dispatch(toRuntimeEventFromPointer("pointerDown", event));
@@ -148,7 +148,6 @@ export function useCanvasRuntime({
 			window.removeEventListener("keyup", onKeyUp);
 			window.removeEventListener("blur", onBlur, true);
 			container.removeEventListener("wheel", onWheel);
-			unregisterCallbacks();
 			runtime.unmount();
 		};
 	}, [containerRef, gridSize, runtime, transformRef]);

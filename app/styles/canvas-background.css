@@ -5,7 +5,7 @@
 		var(--canvas-background-detail),
 		white 22%
 	);
-	--grid-dot-core-size: 4px;
+	--grid-dot-core-size: 1px;
 	--grid-dot-fade-size: 2px;
 	--grid-dot-opacity-min: 0.2;
 	--grid-dot-opacity-max: 0.62;
@@ -13,6 +13,8 @@
 	--grid-dot-opacity-zoom-multiplier: 0.68;
 	--grid-dot-saturate: 1.15;
 	--grid-vignette-opacity: 0.72;
+	--grid-lod-alpha: 1;
+	--grid-lod-spacing: 1;
 	--grid-vignette-inner-stop: 28%;
 	--grid-vignette-edge-color: color-mix(
 		in oklch,
@@ -39,21 +41,23 @@
 
 .canvas-grid-background__dots {
 	background-image: radial-gradient(
-		circle at 0 0,
-		var(--grid-dot-color) var(--grid-dot-core-size),
+		circle at center,
+		var(--grid-dot-color) 0 var(--grid-dot-core-size),
 		transparent var(--grid-dot-fade-size)
 	);
 	background-repeat: repeat;
-	background-size: var(--grid-space-x, 16px) var(--grid-space-y, 16px);
+	background-size: calc(var(--grid-space-x, 16px) * var(--grid-lod-spacing, 1)) calc(var(--grid-space-y, 16px) * var(--grid-lod-spacing, 1));
 	background-position: var(--grid-phase-x, 0px) var(--grid-phase-y, 0px);
-	opacity: clamp(
-		var(--grid-dot-opacity-min),
-		calc(
-			(var(--grid-zoom, 1) - var(--grid-dot-opacity-zoom-base)) *
-			var(--grid-dot-opacity-zoom-multiplier) +
-			var(--grid-dot-opacity-min)
-		),
-		var(--grid-dot-opacity-max)
+	opacity: calc(
+		clamp(
+			var(--grid-dot-opacity-min),
+			calc(
+				(var(--grid-zoom, 1) - var(--grid-dot-opacity-zoom-base)) *
+				var(--grid-dot-opacity-zoom-multiplier) +
+				var(--grid-dot-opacity-min)
+			),
+			var(--grid-dot-opacity-max)
+		) * var(--grid-lod-alpha, 1)
 	);
 	filter: saturate(var(--grid-dot-saturate));
 	pointer-events: none;

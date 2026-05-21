@@ -1,22 +1,16 @@
 import React from "react";
+import type { CanvasElementDefinition } from "./types";
 import type { CanvasElementDisplay } from "@/types";
-import CanvasElementFrame from "../canvas-element/frame";
+import CanvasElementBase from "../canvas-element-base";
 
-type CanvasTitleElementProps = {
-	element: CanvasElementDisplay<"title">;
-};
-
-export default function CanvasTitleElement({
-	element,
-}: CanvasTitleElementProps) {
+function TitleContent({ element }: { element: CanvasElementDisplay<"title"> }) {
 	const titleSize = element.content.sizePx ?? 48;
 	const titleWeight = element.content.weight ?? 700;
-
 	return (
-		<CanvasElementFrame
+		<CanvasElementBase
 			element={element}
 			enableResize={false}
-			surfaceClassName="bg-transparent border-none rounded-none "
+			surfaceClassName="bg-transparent border-none rounded-none"
 			frameClassName="z-10"
 			surfaceStyle={{
 				outline: "none",
@@ -41,6 +35,14 @@ export default function CanvasTitleElement({
 					{element.content.text}
 				</h2>
 			</div>
-		</CanvasElementFrame>
+		</CanvasElementBase>
 	);
 }
+
+export const titleElementDefinition: CanvasElementDefinition<
+	CanvasElementDisplay<"title">
+> = {
+	variant: "title",
+	canResize: () => false,
+	render: ({ element }) => <TitleContent element={element} />,
+};

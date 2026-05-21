@@ -1,27 +1,27 @@
 import clsx from "clsx";
 import React from "react";
 import type { AnyCanvasElementDisplay } from "@/types";
-import { useCanvasElementCore } from "./useCanvasElementCore";
-import { getChildrenWithType } from "@/lib/utils/utils";
-import NoteMenubar from "@/components/note/menubar";
+import { useCanvasElementCore } from "../canvas-element/useCanvasElementCore";
 
-export type CanvasElementFrameProps = {
+export type CanvasElementBaseProps = {
 	element: AnyCanvasElementDisplay;
 	enableResize?: boolean;
 	frameClassName?: string;
 	surfaceClassName?: string;
 	surfaceStyle?: React.CSSProperties;
+	tools?: React.ReactNode;
 	children: React.ReactNode;
 };
 
-export default function CanvasElementFrame({
+export default function CanvasElementBase({
 	element,
 	enableResize = true,
 	frameClassName,
 	surfaceClassName,
 	surfaceStyle,
+	tools,
 	children,
-}: CanvasElementFrameProps) {
+}: CanvasElementBaseProps) {
 	const {
 		wrapperRef,
 		isSelected,
@@ -30,13 +30,8 @@ export default function CanvasElementFrame({
 		handlePointerDown,
 	} = useCanvasElementCore(element, { enableResize });
 
-	const [menubar, remainingChildren] = getChildrenWithType(
-		children,
-		NoteMenubar,
-	);
-
 	return (
-		// biome-ignore lint/a11y/noStaticElementInteractions: <explanation>
+		// biome-ignore lint/a11y/noStaticElementInteractions: pointer handling is owned by runtime hooks
 		<div
 			ref={wrapperRef}
 			className={clsx(
@@ -78,14 +73,14 @@ export default function CanvasElementFrame({
 		>
 			<div
 				className={clsx(
-					"group pointer-events-auto  canvas-element-content w-full h-full flex-1",
+					"group pointer-events-auto canvas-element-content w-full h-full flex-1",
 					surfaceClassName,
 				)}
 				style={surfaceStyle}
 			>
-				{remainingChildren}
+				{children}
 			</div>
-			{menubar}
+			{tools}
 		</div>
 	);
 }

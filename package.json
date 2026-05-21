@@ -45,6 +45,7 @@
 		"base-ui": "^0.0.294",
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
+		"eslint-plugin-neverthrow": "^1.1.4",
 		"immer": "^11.1.4",
 		"motion": "^12.38.0",
 		"neverthrow": "^8.2.0",

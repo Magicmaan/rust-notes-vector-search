@@ -54,7 +54,7 @@ export default function App() {
 				<CookiesProvider>
 					<EventBusProvider>
 						<BrowserRouter>
-							<Sidebar.Provider className="p-4 bg-primary-400 h-screen max-h-screen">
+							<Sidebar.Provider className="p-2 bg-primary-400 h-screen max-h-screen flex flex-row gap-4">
 								<AppSidebar />
 								<div
 									className="flex-1  rounded-lg overflow-clip bg-primary-300 border-4 border-border"

@@ -1,25 +1,28 @@
 import React, { useMemo } from "react";
+import type { CanvasElementDefinition, CanvasUIPlugin } from "./types";
 import type { NoteDisplay } from "@/types";
 import NoteMenubar from "@/components/note/menubar";
-import { getThoughtSpaceCardMock } from "../canvas-base/mock-cards";
-import CanvasElementFrame from "../canvas-element/frame";
 import Editor from "@/components/note/editor";
 import clsx from "clsx";
+import { getThoughtSpaceCardMock } from "../canvas-base/mock-cards";
+import CanvasElementBase from "../canvas-element-base";
 
-type CanvasNoteElementProps = {
+function NoteContent({
+	element,
+	tools,
+}: {
 	element: NoteDisplay;
-};
-
-export default function CanvasNoteElement({ element }: CanvasNoteElementProps) {
+	tools: React.ReactNode;
+}) {
 	const mockCard = useMemo(
 		() => getThoughtSpaceCardMock(element.id),
 		[element.id],
 	);
 	const isRoadmapCard = mockCard?.kind === "roadmap";
-
 	return (
-		<CanvasElementFrame
+		<CanvasElementBase
 			element={element}
+			enableResize
 			frameClassName={clsx(isRoadmapCard && "ts-note-roadmap")}
 			surfaceClassName={clsx(
 				"select-none",
@@ -28,17 +31,28 @@ export default function CanvasNoteElement({ element }: CanvasNoteElementProps) {
 				"outline-4 outline-transparent",
 				"group-data-[selected=true]:outline-4 group-data-[selected=true]:outline-offset-4 group-data-[selected=true]:outline-[#0000ff]",
 			)}
-			surfaceStyle={{
-				borderWidth: "calc(8px * var(--inverse-zoom))",
-			}}
+			surfaceStyle={{ borderWidth: "calc(8px * var(--inverse-zoom))" }}
+			tools={tools}
 		>
-			<NoteMenubar element={element} />
 			<div
 				className="canvas-element-content-content flex h-full flex-col gap-2 p-4 font-['Manrope','Avenir_Next','SF_Pro_Display','Segoe_UI',sans-serif] text-start"
 				style={{ anchorName: "--rvh" }}
 			>
 				<Editor note={element} preview />
 			</div>
-		</CanvasElementFrame>
+		</CanvasElementBase>
 	);
 }
+
+export const noteElementDefinition: CanvasElementDefinition<NoteDisplay> = {
+	variant: "note",
+	canResize: (_element, options) => options?.enableResize ?? true,
+	render: ({ element, tools }) => (
+		<NoteContent element={element} tools={tools} />
+	),
+};
+
+export const noteUIPlugin: CanvasUIPlugin<NoteDisplay> = {
+	variant: "note",
+	renderTools: ({ element }) => <NoteMenubar element={element} />,
+};

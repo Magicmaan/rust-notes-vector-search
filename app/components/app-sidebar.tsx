@@ -31,11 +31,8 @@ function AppSidebar() {
 		<Sidebar className="thoughtspace-sidebar">
 			<SidebarHeaderSection />
 
-			<Sidebar.Content className="overflow-hidden px-2 pb-2">
-				<ScrollArea
-					className="h-full"
-					contentClassName="gap-0 h-full px-0 pr-2 pb-2"
-				>
+			<Sidebar.Content className="overflow-hidden p-4">
+				<ScrollArea className="h-full" contentClassName="gap-0 h-full px-0">
 					<div className="min-h-full grid grid-cols-1 grid-rows[0.25rem_0.125rem_auto_0.125rem_0.25rem] gap-4">
 						<Sidebar.Group className="gap-4">
 							<div className="relative bg-background-200/50 rounded-md text-foreground-muted">

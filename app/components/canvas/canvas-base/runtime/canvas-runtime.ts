@@ -10,10 +10,17 @@ import type {
 	CanvasCallback,
 	CanvasOperation,
 	FrameContext,
-	RuntimeCallbackKind,
+	InputEventContext,
+	CanvasEventInputKind,
 	RuntimeInputEvent,
+	RuntimeInputEventBase,
 	RuntimeSnapshot,
 } from "./types";
+import { PluginHandler } from "./plugins";
+import { PluginBase } from "./plugins/types";
+import { AnyCanvasElementDisplay } from "@/types";
+import { EditorGridStoreType } from "@/providers/editor/types";
+import { err, ok, Result } from "neverthrow";
 
 type RuntimeState = {
 	spaceHeld: boolean;
@@ -24,16 +31,34 @@ type RuntimeState = {
 
 type RuntimeListener = () => void;
 
+// My idea is that the canvasRuntime is just the logic, and you provide every part of it with plugins.
+// so it should have any data source
+// (ideally it'd all be in this)
+export class CanvasRuntimeSource<ElementType = any> {
+	getElementById(id: string) {}
+	getElementByName(name: string) {}
+	getElementsInRect(rect: {
+		x: number;
+		y: number;
+		width: number;
+		height: number;
+	}) {}
+	getSelectedElements() {}
+	setElementById(id: string, data: AnyCanvasElementDisplay) {}
+}
+
 export class CanvasRuntime {
 	private container: HTMLDivElement | null = null;
 	private transform: HTMLDivElement | null = null;
+	private unsubscribeStore: (() => void) | null = null;
 	private state: RuntimeState = {
 		spaceHeld: false,
 		isPanning: false,
 		lockout: false,
 		marqueeRect: null,
 	};
-	private callbacks: Record<RuntimeCallbackKind, Set<CanvasCallback>> = {
+
+	private callbacks: Record<CanvasEventInputKind, Set<CanvasCallback>> = {
 		pointerDown: new Set(),
 		pointerMove: new Set(),
 		pointerUp: new Set(),
@@ -51,6 +76,13 @@ export class CanvasRuntime {
 		spaceHeld: false,
 		lockout: false,
 	};
+	private plugin_handler = new PluginHandler();
+
+	constructor(plugins: PluginBase[] = []) {
+		for (const plugin of plugins) {
+			this.plugin_handler.addPlugin(plugin);
+		}
+	}
 
 	mount(input: {
 		container: HTMLDivElement;
@@ -61,19 +93,44 @@ export class CanvasRuntime {
 		this.transform = input.transform;
 		this.gridSize = input.gridSize;
 		const store = useEditorGridStore.getState();
+		this.syncViewportCss({
+			offsetX: store.offsetX,
+			offsetY: store.offsetY,
+			zoomLevel: store.zoomLevel,
+		});
+		this.applyBackgroundFromStore();
+		this.syncLockout(false);
+
+		this.unsubscribeStore?.();
+		this.unsubscribeStore = useEditorGridStore.subscribe((next, prev) => {
+			if (
+				next.zoomLevel === prev.zoomLevel &&
+				next.offsetX === prev.offsetX &&
+				next.offsetY === prev.offsetY
+			) {
+				return;
+			}
+
 			this.syncViewportCss({
-				offsetX: store.offsetX,
-				offsetY: store.offsetY,
-				zoomLevel: store.zoomLevel,
+				offsetX: next.offsetX,
+				offsetY: next.offsetY,
+				zoomLevel: next.zoomLevel,
 			});
 			this.applyBackgroundFromStore();
-			this.syncLockout(false);
-		}
+		});
+
+		// Setup Plugins
+		this.plugin_handler.mount(this);
+	}
 
 	unmount() {
+		this.unsubscribeStore?.();
+		this.unsubscribeStore = null;
 		this.syncLockout(false);
 		this.container = null;
 		this.transform = null;
+
+		this.plugin_handler.unmount();
 	}
 
 	updateGridSize(gridSize: [number, number]) {
@@ -90,7 +147,7 @@ export class CanvasRuntime {
 		return () => this.listeners.delete(listener);
 	}
 
-	registerCallback(kind: RuntimeCallbackKind, handler: CanvasCallback) {
+	registerCallback(kind: CanvasEventInputKind, handler: CanvasCallback) {
 		this.callbacks[kind].add(handler);
 		return () => {
 			this.callbacks[kind].delete(handler);
@@ -102,11 +159,15 @@ export class CanvasRuntime {
 		if (!context) {
 			return;
 		}
-		const operations = this.collectOperations(event.kind, context);
+		const operations = this.runCallbacks(event.kind, context);
 		this.commitOperations(operations);
 	}
 
-	private collectOperations(kind: RuntimeCallbackKind, context: FrameContext) {
+	// executes all callbacks for a given event kind
+	private runCallbacks(
+		kind: CanvasEventInputKind,
+		context: FrameContext<any>,
+	): CanvasOperation[] {
 		const ops: CanvasOperation[] = [];
 		for (const callback of this.callbacks[kind]) {
 			try {
@@ -123,7 +184,47 @@ export class CanvasRuntime {
 		return ops;
 	}
 
-	private buildFrameContext(event: RuntimeInputEvent): FrameContext | null {
+	private buildFrameEventContext(
+		event: RuntimeInputEvent,
+		store: EditorGridStoreType,
+	): Result<InputEventContext, string> {
+		if (!this.container) {
+			return err("Canvas container not available");
+		}
+		const screenX = event.clientX;
+		const screenY = event.clientY;
+		const world = worldPointFromClient(screenX, screenY, this.container, {
+			offsetX: store.offsetX,
+			offsetY: store.offsetY,
+			zoomLevel: store.zoomLevel,
+		});
+		return ok({
+			event,
+			gridSize: this.gridSize,
+			container: this.container,
+			transform: this.transform,
+			viewport: {
+				zoomLevel: store.zoomLevel,
+				offsetX: store.offsetX,
+				offsetY: store.offsetY,
+			},
+			pointer: {
+				screenX,
+				screenY,
+				worldX: world.x,
+				worldY: world.y,
+			},
+			flags: {
+				spaceHeld: this.state.spaceHeld,
+				isPanning: this.state.isPanning,
+			},
+			marqueeRect: this.state.marqueeRect,
+		});
+	}
+
+	private buildFrameContext(
+		event: RuntimeInputEvent,
+	): FrameContext<InputEventContext> | null {
 		if (!this.container) {
 			return null;
 		}
@@ -166,16 +267,16 @@ export class CanvasRuntime {
 
 		for (const operation of sorted) {
 			switch (operation.type) {
-					case "setFlag":
-						if (operation.key === "spaceHeld") {
-							this.state.spaceHeld = operation.value;
-							this.state.lockout = operation.value;
-							this.syncLockout(this.state.lockout);
-						}
-						if (operation.key === "isPanning") {
-							this.state.isPanning = operation.value;
-						}
-						break;
+				case "setFlag":
+					if (operation.key === "spaceHeld") {
+						this.state.spaceHeld = operation.value;
+						this.state.lockout = operation.value;
+						this.syncLockout(this.state.lockout);
+					}
+					if (operation.key === "isPanning") {
+						this.state.isPanning = operation.value;
+					}
+					break;
 				case "setPanState": {
 					const store = useEditorGridStore.getState();
 					if (operation.value) {
@@ -276,12 +377,12 @@ export class CanvasRuntime {
 	}
 
 	private emitChange() {
-			this.snapshot = {
-				marqueeRect: this.state.marqueeRect,
-				isPanning: this.state.isPanning,
-				spaceHeld: this.state.spaceHeld,
-				lockout: this.state.lockout,
-			};
+		this.snapshot = {
+			marqueeRect: this.state.marqueeRect,
+			isPanning: this.state.isPanning,
+			spaceHeld: this.state.spaceHeld,
+			lockout: this.state.lockout,
+		};
 		for (const listener of this.listeners) {
 			listener();
 		}

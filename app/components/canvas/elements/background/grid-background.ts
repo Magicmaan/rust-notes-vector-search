@@ -12,6 +12,8 @@ type GridBackgroundMetrics = {
 	phaseX: number;
 	phaseY: number;
 	zoom: number;
+	lodAlpha: number;
+	lodSpacing: number;
 };
 
 type GridBackgroundCssVariableName =
@@ -21,7 +23,9 @@ type GridBackgroundCssVariableName =
 	| "--grid-space-y"
 	| "--grid-phase-x"
 	| "--grid-phase-y"
-	| "--grid-zoom";
+	| "--grid-zoom"
+	| "--grid-lod-alpha"
+	| "--grid-lod-spacing";
 
 const GRID_BACKGROUND_CSS_VARIABLE_ORDER: readonly GridBackgroundCssVariableName[] =
 	[
@@ -32,6 +36,8 @@ const GRID_BACKGROUND_CSS_VARIABLE_ORDER: readonly GridBackgroundCssVariableName
 		"--grid-phase-x",
 		"--grid-phase-y",
 		"--grid-zoom",
+		"--grid-lod-alpha",
+		"--grid-lod-spacing",
 	];
 
 function positiveModulo(value: number, modulus: number): number {
@@ -47,19 +53,18 @@ export function getCanvasBackgroundMetrics(
 	viewport: GridBackgroundViewport,
 	gridSize: [number, number],
 ): GridBackgroundMetrics {
-	// cell size is the base size of the grid cells before zoom is applied
 	const cellWidth = Math.max(1, Math.round(gridSize[0] || 1));
 	const cellHeight = Math.max(1, Math.round(gridSize[1] || 1));
-
 	const zoom = Math.max(0.001, viewport.zoomLevel || 1);
-
-	// space is the distance between grid lines, which scales with zoom
 	const spaceX = Math.max(1, cellWidth * zoom);
 	const spaceY = Math.max(1, cellHeight * zoom);
-
-	// phase is the offset of grid lines. Allows for them to move smoothly with panning, and keeps them aligned with content
 	const phaseX = positiveModulo(viewport.offsetX, spaceX);
 	const phaseY = positiveModulo(viewport.offsetY, spaceY);
+
+	// LOD should reduce dots primarily when zoomed out (<1), not when zoomed in.
+	const zoomOutDistance = zoom < 1 ? Math.abs(Math.log2(zoom)) : 0;
+	const lodAlpha = Math.max(0.28, Math.min(1, 1 - zoomOutDistance * 0.35));
+	const lodSpacing = Math.max(1, Math.min(2.2, 1 + zoomOutDistance * 0.6));
 
 	return {
 		cellWidth,
@@ -69,10 +74,11 @@ export function getCanvasBackgroundMetrics(
 		phaseX,
 		phaseY,
 		zoom,
+		lodAlpha,
+		lodSpacing,
 	};
 }
 
-// generates the CSS variables based on canvas state
 export function getCanvasBackgroundCssVariables(
 	viewport: GridBackgroundViewport,
 	gridSize: [number, number],
@@ -87,6 +93,8 @@ export function getCanvasBackgroundCssVariables(
 		"--grid-phase-x": `${metrics.phaseX}px`,
 		"--grid-phase-y": `${metrics.phaseY}px`,
 		"--grid-zoom": String(metrics.zoom),
+		"--grid-lod-alpha": String(metrics.lodAlpha),
+		"--grid-lod-spacing": String(metrics.lodSpacing),
 	};
 }
 
@@ -101,7 +109,6 @@ function setCssVariableIfChanged(
 	style.setProperty(name, value);
 }
 
-// used to apply CSS variables during movement, without causing too many React updates
 export function applyCanvasBackgroundCssVariables(
 	container: HTMLDivElement | null,
 	viewport: GridBackgroundViewport,
@@ -120,6 +127,8 @@ export function applyCanvasBackgroundCssVariables(
 		"--grid-phase-x": `${metrics.phaseX}px`,
 		"--grid-phase-y": `${metrics.phaseY}px`,
 		"--grid-zoom": String(metrics.zoom),
+		"--grid-lod-alpha": String(metrics.lodAlpha),
+		"--grid-lod-spacing": String(metrics.lodSpacing),
 	};
 
 	for (const variableName of GRID_BACKGROUND_CSS_VARIABLE_ORDER) {

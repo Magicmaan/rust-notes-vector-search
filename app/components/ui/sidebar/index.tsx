@@ -160,9 +160,11 @@ function SidebarRoot({
 		<div
 			className={clsx(
 				className,
-				"group peer block h-svh shrink-0 overflow-hidden text-foreground-normal transition-[width] duration-200 ease-linear",
+				"group peer block h-full shrink-0 overflow-hidden text-foreground-normal transition-[width] duration-200 ease-linear",
 				"w-(--sidebar-width) data-[collapsible=offcanvas]:w-0",
 				"data-[collapsible=icon]:w-(--sidebar-width-icon)",
+				"data-[variant=floating]:absolute data-[variant=floating]:left-0 data-[variant=floating]:top-0",
+				"*:not-prose",
 			)}
 			data-state={state}
 			data-collapsible={state === "collapsed" ? collapsible : ""}
@@ -174,18 +176,18 @@ function SidebarRoot({
 				data-slot="sidebar-container"
 				data-side={side}
 				className={clsx(
-					"z-10 flex h-svh w-(--sidebar-width) transition-[width,padding] duration-200 ease-linear",
+					"z-10 flex h-full w-(--sidebar-width) transition-[width,padding] duration-200 ease-linear",
 					// Adjust the padding for floating and inset variants.
 					variant === "floating" || variant === "inset"
 						? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
-						: "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=right]:border-l",
+						: "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=right]:border-l ",
 				)}
 				{...props}
 			>
 				<div
 					data-sidebar="sidebar"
 					data-slot="sidebar-inner"
-					className="flex size-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:shadow-sm group-data-[variant=floating]:ring-1 group-data-[variant=floating]:ring-primary-400"
+					className="flex w-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:shadow-sm group-data-[variant=floating]:ring-1 group-data-[variant=floating]:ring-primary-400 rounded-md bg-background-400 border border-border border-r-border-light/50 shadow-2xl shadow-shadow  overflow-hidden"
 				>
 					{children}
 				</div>
@@ -331,7 +333,7 @@ function SidebarGroup({ className, ...props }: React.ComponentProps<"ol">) {
 			data-slot="sidebar-group"
 			data-sidebar="group"
 			className={clsx(
-				"relative flex flex-1 h-full w-full min-w-0 flex-col gap-1 rounded-md bg-gradient-to-b from-background-300 from-25% to-background-300/75 to-100% p-2 text-foreground-normal border border-border/50 border-b-border/25",
+				"relative flex flex-1 not-prose h-full w-full min-w-0 flex-col gap-1 rounded-md bg-gradient-to-b from-black/5 from-25% to-black/7 to-100% p-2 text-foreground-normal border border-border/50 border-b-border/25",
 				className,
 			)}
 			{...props}
