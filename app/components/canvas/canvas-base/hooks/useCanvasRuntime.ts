@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { CanvasRuntime } from "../runtime/canvas-runtime";
 import type { RuntimeInputEvent, RuntimeSnapshot } from "../runtime/types";
+import { createZustandRuntimePorts } from "../runtime/zustand-runtime-ports";
 
 function toRuntimeEventFromPointer(
 	kind: RuntimeInputEvent["kind"],
@@ -93,7 +94,8 @@ export function useCanvasRuntime({
 	transformRef: React.RefObject<HTMLDivElement | null>;
 	gridSize: [number, number];
 }): RuntimeSnapshot {
-	const runtime = useMemo(() => new CanvasRuntime(), []);
+	const ports = useMemo(() => createZustandRuntimePorts(), []);
+	const runtime = useMemo(() => new CanvasRuntime(ports), [ports]);
 
 	const snapshot = useSyncExternalStore(
 		(listener) => runtime.subscribe(listener),

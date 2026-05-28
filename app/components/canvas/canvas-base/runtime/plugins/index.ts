@@ -1,5 +1,6 @@
 import { CanvasRuntime } from "../canvas-runtime";
 import MarqueePlugin from "./marquee-plugin";
+import { NotePlugin } from "./note-plugin";
 import { PanPlugin } from "./pan-plugin";
 import { PluginBase } from "./types";
 import { ZoomPlugin } from "./zoom-plugin";
@@ -10,8 +11,13 @@ import { ZoomPlugin } from "./zoom-plugin";
 export class PluginHandler {
 	plugins: PluginBase[];
 
-	constructor() {
-		this.plugins = [new PanPlugin(), new MarqueePlugin(), new ZoomPlugin()];
+	constructor(plugins: PluginBase[] = []) {
+		this.plugins = plugins.length > 0 ? plugins : [
+			new PanPlugin(),
+			new NotePlugin(),
+			new MarqueePlugin(),
+			new ZoomPlugin(),
+		];
 	}
 
 	addPlugin(plugin: PluginBase) {

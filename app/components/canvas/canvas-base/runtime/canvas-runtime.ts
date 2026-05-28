@@ -1,4 +1,3 @@
-import { useEditorGridStore } from "@/providers/editor/store";
 import { applyCanvasBackgroundCssVariables } from "../../elements/background/grid-background";
 import {
 	VIEWPORT_CSS_VAR_OFFSET_X,
@@ -8,19 +7,18 @@ import {
 import { worldPointFromClient } from "../util/viewport-transform";
 import type {
 	CanvasCallback,
+	CanvasEventInputKind,
 	CanvasOperation,
 	FrameContext,
 	InputEventContext,
-	CanvasEventInputKind,
+	RuntimeExecutionTrace,
 	RuntimeInputEvent,
-	RuntimeInputEventBase,
+	RuntimePorts,
 	RuntimeSnapshot,
+	RuntimeTargetInfo,
 } from "./types";
 import { PluginHandler } from "./plugins";
-import { PluginBase } from "./plugins/types";
-import { AnyCanvasElementDisplay } from "@/types";
-import { EditorGridStoreType } from "@/providers/editor/types";
-import { err, ok, Result } from "neverthrow";
+import type { PluginBase } from "./plugins/types";
 
 type RuntimeState = {
 	spaceHeld: boolean;
@@ -31,26 +29,11 @@ type RuntimeState = {
 
 type RuntimeListener = () => void;
 
-// My idea is that the canvasRuntime is just the logic, and you provide every part of it with plugins.
-// so it should have any data source
-// (ideally it'd all be in this)
-export class CanvasRuntimeSource<ElementType = any> {
-	getElementById(id: string) {}
-	getElementByName(name: string) {}
-	getElementsInRect(rect: {
-		x: number;
-		y: number;
-		width: number;
-		height: number;
-	}) {}
-	getSelectedElements() {}
-	setElementById(id: string, data: AnyCanvasElementDisplay) {}
-}
-
 export class CanvasRuntime {
 	private container: HTMLDivElement | null = null;
 	private transform: HTMLDivElement | null = null;
-	private unsubscribeStore: (() => void) | null = null;
+	private unsubscribeViewport: (() => void) | null = null;
+	private readonly ports: RuntimePorts;
 	private state: RuntimeState = {
 		spaceHeld: false,
 		isPanning: false,
@@ -76,12 +59,12 @@ export class CanvasRuntime {
 		spaceHeld: false,
 		lockout: false,
 	};
-	private plugin_handler = new PluginHandler();
+	private pluginHandler: PluginHandler;
+	private lastTrace: RuntimeExecutionTrace | null = null;
 
-	constructor(plugins: PluginBase[] = []) {
-		for (const plugin of plugins) {
-			this.plugin_handler.addPlugin(plugin);
-		}
+	constructor(ports: RuntimePorts, plugins: PluginBase[] = []) {
+		this.ports = ports;
+		this.pluginHandler = new PluginHandler(plugins);
 	}
 
 	mount(input: {
@@ -92,54 +75,53 @@ export class CanvasRuntime {
 		this.container = input.container;
 		this.transform = input.transform;
 		this.gridSize = input.gridSize;
-		const store = useEditorGridStore.getState();
+		const store = this.ports.read.getState();
 		this.syncViewportCss({
 			offsetX: store.offsetX,
 			offsetY: store.offsetY,
 			zoomLevel: store.zoomLevel,
 		});
-		this.applyBackgroundFromStore();
+		this.applyBackgroundFromState();
 		this.syncLockout(false);
 
-		this.unsubscribeStore?.();
-		this.unsubscribeStore = useEditorGridStore.subscribe((next, prev) => {
-			if (
-				next.zoomLevel === prev.zoomLevel &&
-				next.offsetX === prev.offsetX &&
-				next.offsetY === prev.offsetY
-			) {
-				return;
-			}
-
+		this.unsubscribeViewport?.();
+		this.unsubscribeViewport = this.ports.read.subscribeViewport(() => {
+			const next = this.ports.read.getState();
 			this.syncViewportCss({
 				offsetX: next.offsetX,
 				offsetY: next.offsetY,
 				zoomLevel: next.zoomLevel,
 			});
-			this.applyBackgroundFromStore();
+			this.applyBackgroundFromState();
 		});
 
-		// Setup Plugins
-		this.plugin_handler.mount(this);
+		this.pluginHandler.mount(this);
 	}
 
 	unmount() {
-		this.unsubscribeStore?.();
-		this.unsubscribeStore = null;
+		this.unsubscribeViewport?.();
+		this.unsubscribeViewport = null;
 		this.syncLockout(false);
 		this.container = null;
 		this.transform = null;
-
-		this.plugin_handler.unmount();
+		this.pluginHandler.unmount();
 	}
 
 	updateGridSize(gridSize: [number, number]) {
 		this.gridSize = gridSize;
-		this.applyBackgroundFromStore();
+		this.applyBackgroundFromState();
 	}
 
 	getSnapshot() {
 		return this.snapshot;
+	}
+
+	getPorts() {
+		return this.ports;
+	}
+
+	getLastTrace() {
+		return this.lastTrace;
 	}
 
 	subscribe(listener: RuntimeListener) {
@@ -156,27 +138,22 @@ export class CanvasRuntime {
 
 	dispatch(event: RuntimeInputEvent) {
 		const context = this.buildFrameContext(event);
-		if (!context) {
-			return;
-		}
+		if (!context) return;
 		const operations = this.runCallbacks(event.kind, context);
+		this.lastTrace = { eventKind: event.kind, operations };
 		this.commitOperations(operations);
 	}
 
-	// executes all callbacks for a given event kind
 	private runCallbacks(
 		kind: CanvasEventInputKind,
-		context: FrameContext<any>,
+		context: FrameContext<InputEventContext>,
 	): CanvasOperation[] {
 		const ops: CanvasOperation[] = [];
 		for (const callback of this.callbacks[kind]) {
 			try {
 				const result = callback(context);
-				if (Array.isArray(result)) {
-					ops.push(...result);
-				} else if (result) {
-					ops.push(result);
-				}
+				if (Array.isArray(result)) ops.push(...result);
+				else if (result) ops.push(result);
 			} catch (error) {
 				console.error("[CanvasRuntime] callback failed", kind, error);
 			}
@@ -184,51 +161,11 @@ export class CanvasRuntime {
 		return ops;
 	}
 
-	private buildFrameEventContext(
-		event: RuntimeInputEvent,
-		store: EditorGridStoreType,
-	): Result<InputEventContext, string> {
-		if (!this.container) {
-			return err("Canvas container not available");
-		}
-		const screenX = event.clientX;
-		const screenY = event.clientY;
-		const world = worldPointFromClient(screenX, screenY, this.container, {
-			offsetX: store.offsetX,
-			offsetY: store.offsetY,
-			zoomLevel: store.zoomLevel,
-		});
-		return ok({
-			event,
-			gridSize: this.gridSize,
-			container: this.container,
-			transform: this.transform,
-			viewport: {
-				zoomLevel: store.zoomLevel,
-				offsetX: store.offsetX,
-				offsetY: store.offsetY,
-			},
-			pointer: {
-				screenX,
-				screenY,
-				worldX: world.x,
-				worldY: world.y,
-			},
-			flags: {
-				spaceHeld: this.state.spaceHeld,
-				isPanning: this.state.isPanning,
-			},
-			marqueeRect: this.state.marqueeRect,
-		});
-	}
-
 	private buildFrameContext(
 		event: RuntimeInputEvent,
 	): FrameContext<InputEventContext> | null {
-		if (!this.container) {
-			return null;
-		}
-		const store = useEditorGridStore.getState();
+		if (!this.container) return null;
+		const store = this.ports.read.getState();
 		const screenX = event.clientX;
 		const screenY = event.clientY;
 		const world = worldPointFromClient(screenX, screenY, this.container, {
@@ -236,6 +173,7 @@ export class CanvasRuntime {
 			offsetY: store.offsetY,
 			zoomLevel: store.zoomLevel,
 		});
+		const target = this.resolveTargetInfo(event.target);
 		return {
 			event,
 			gridSize: this.gridSize,
@@ -246,68 +184,66 @@ export class CanvasRuntime {
 				offsetX: store.offsetX,
 				offsetY: store.offsetY,
 			},
-			pointer: {
-				screenX,
-				screenY,
-				worldX: world.x,
-				worldY: world.y,
-			},
-			flags: {
-				spaceHeld: this.state.spaceHeld,
-				isPanning: this.state.isPanning,
-			},
+			ports: this.ports,
+			target,
+			pointer: { screenX, screenY, worldX: world.x, worldY: world.y },
+			flags: { spaceHeld: this.state.spaceHeld, isPanning: this.state.isPanning },
 			marqueeRect: this.state.marqueeRect,
 		};
 	}
 
-	private commitOperations(operations: CanvasOperation[]) {
-		const sorted = [...operations].sort((a, b) => {
-			return this.operationOrder(a.type) - this.operationOrder(b.type);
-		});
+	private resolveTargetInfo(target: EventTarget | null): RuntimeTargetInfo {
+		if (!(target instanceof Node) || !this.container) {
+			return { elementId: null, variant: null, insideCanvas: false };
+		}
+		const insideCanvas = this.container.contains(target);
+		const source = target instanceof Element ? target : target.parentElement;
+		const node = source?.closest("[data-canvas-element-id]") as HTMLElement | null;
+		if (!node) {
+			return { elementId: null, variant: null, insideCanvas };
+		}
+		const elementId = node.getAttribute("data-canvas-element-id");
+		const variant =
+			(node.getAttribute("data-canvas-element") as RuntimeTargetInfo["variant"]) ??
+			null;
+		return { elementId, variant, insideCanvas };
+	}
 
+	private commitOperations(operations: CanvasOperation[]) {
+		const sorted = [...operations].sort((a, b) => this.operationOrder(a) - this.operationOrder(b));
 		for (const operation of sorted) {
 			switch (operation.type) {
-				case "setFlag":
-					if (operation.key === "spaceHeld") {
-						this.state.spaceHeld = operation.value;
-						this.state.lockout = operation.value;
-						this.syncLockout(this.state.lockout);
-					}
-					if (operation.key === "isPanning") {
-						this.state.isPanning = operation.value;
-					}
+				case "interaction.setSpaceHeld":
+					this.state.spaceHeld = operation.value;
+					this.state.lockout = operation.value;
+					this.syncLockout(this.state.lockout);
 					break;
-				case "setPanState": {
-					const store = useEditorGridStore.getState();
-					if (operation.value) {
-						store.startPan();
-					} else {
-						store.endPan(false);
-					}
+				case "interaction.setLockout":
+					this.state.lockout = operation.value;
+					this.syncLockout(this.state.lockout);
+					break;
+				case "interaction.setPanning":
 					this.state.isPanning = operation.value;
 					break;
-				}
-				case "setCssVar":
-					if (this.transform) {
-						this.transform.style.setProperty(operation.name, operation.value);
-					}
+				case "viewport.beginPan":
+					this.ports.write.startPan();
+					this.state.isPanning = true;
 					break;
-				case "setViewportTransform": {
-					const store = useEditorGridStore.getState();
-					store.setViewportTransform({
-						zoomLevel: operation.zoomLevel,
-						offsetX: operation.offsetX,
-						offsetY: operation.offsetY,
-					});
+				case "viewport.endPan":
+					this.ports.write.endPan(operation.commit);
+					this.state.isPanning = false;
+					break;
+				case "viewport.setTransform":
+					this.ports.write.setViewportTransform(
+						operation.zoomLevel,
+						operation.offsetX,
+						operation.offsetY,
+					);
 					this.syncViewportCss(operation);
 					break;
-				}
-				case "setViewportOffset": {
-					const store = useEditorGridStore.getState();
-					store.setViewportOffset({
-						x: operation.offsetX,
-						y: operation.offsetY,
-					});
+				case "viewport.setOffset": {
+					this.ports.write.setViewportOffset(operation.offsetX, operation.offsetY);
+					const store = this.ports.read.getState();
 					this.syncViewportCss({
 						zoomLevel: store.zoomLevel,
 						offsetX: operation.offsetX,
@@ -315,26 +251,34 @@ export class CanvasRuntime {
 					});
 					break;
 				}
-				case "setMarqueeRect":
-					this.state.marqueeRect = operation.rect;
+				case "selection.set":
+					this.ports.write.setSelectedNoteIds(operation.ids);
 					break;
-				case "setSelection": {
-					const store = useEditorGridStore.getState();
-					store.setSelectedNoteIds(operation.ids);
-					break;
-				}
-				case "clearSelection": {
-					const store = useEditorGridStore.getState();
-					store.clearSelectedNoteIds();
+				case "selection.clear":
+					this.ports.write.clearSelectedNoteIds();
 					this.state.marqueeRect = null;
 					break;
-				}
-				case "updateElementsBulk": {
-					const store = useEditorGridStore.getState();
-					store.updateElementsBulk(operation.elements);
+				case "selection.toggle": {
+					const current = this.ports.read.getState().selectedNoteIds;
+					if (current.includes(operation.id)) {
+						this.ports.write.setSelectedNoteIds(current.filter((id) => id !== operation.id));
+					} else {
+						this.ports.write.setSelectedNoteIds([...current, operation.id]);
+					}
 					break;
 				}
-				case "applyBackground":
+				case "element.previewBulk":
+				case "element.commitBulk":
+				case "element.rollbackSession":
+					this.ports.write.updateElementsBulk(operation.elements);
+					break;
+				case "ui.setMarqueeRect":
+					this.state.marqueeRect = operation.rect;
+					break;
+				case "ui.setCssVar":
+					if (this.transform) this.transform.style.setProperty(operation.name, operation.value);
+					break;
+				case "ui.applyBackground":
 					if (this.container) {
 						applyCanvasBackgroundCssVariables(
 							this.container,
@@ -347,32 +291,45 @@ export class CanvasRuntime {
 						);
 					}
 					break;
+				case "ui.setResizeAttrs": {
+					const node = document.querySelector(
+						`[data-canvas-element-id="${operation.elementId}"]`,
+					) as HTMLElement | null;
+					if (node) {
+						node.setAttribute("data-resizing", operation.state);
+						node.setAttribute("data-resize-heading", operation.heading);
+					}
+					break;
+				}
 			}
 		}
-
 		this.emitChange();
 	}
 
-	private operationOrder(type: CanvasOperation["type"]) {
-		switch (type) {
-			case "setFlag":
+	private operationOrder(operation: CanvasOperation) {
+		switch (operation.type) {
+			case "interaction.setSpaceHeld":
+			case "interaction.setLockout":
+			case "interaction.setPanning":
+			case "viewport.beginPan":
+			case "viewport.endPan":
 				return 1;
-			case "setPanState":
-				return 1;
-			case "setCssVar":
+			case "ui.setCssVar":
 				return 2;
-			case "setMarqueeRect":
-			case "setSelection":
-			case "clearSelection":
+			case "selection.set":
+			case "selection.clear":
+			case "selection.toggle":
+			case "ui.setMarqueeRect":
+			case "ui.setResizeAttrs":
 				return 3;
-			case "setViewportOffset":
-			case "setViewportTransform":
-			case "updateElementsBulk":
+			case "element.previewBulk":
+			case "element.commitBulk":
+			case "element.rollbackSession":
+			case "viewport.setOffset":
+			case "viewport.setTransform":
 				return 4;
-			case "applyBackground":
+			case "ui.applyBackground":
 				return 5;
-			default:
-				return 99;
 		}
 	}
 
@@ -383,9 +340,7 @@ export class CanvasRuntime {
 			spaceHeld: this.state.spaceHeld,
 			lockout: this.state.lockout,
 		};
-		for (const listener of this.listeners) {
-			listener();
-		}
+		for (const listener of this.listeners) listener();
 	}
 
 	private syncViewportCss(viewport: {
@@ -394,23 +349,14 @@ export class CanvasRuntime {
 		zoomLevel: number;
 	}) {
 		if (!this.transform) return;
-		this.transform.style.setProperty(
-			VIEWPORT_CSS_VAR_OFFSET_X,
-			`${viewport.offsetX}px`,
-		);
-		this.transform.style.setProperty(
-			VIEWPORT_CSS_VAR_OFFSET_Y,
-			`${viewport.offsetY}px`,
-		);
-		this.transform.style.setProperty(
-			VIEWPORT_CSS_VAR_ZOOM,
-			String(viewport.zoomLevel),
-		);
+		this.transform.style.setProperty(VIEWPORT_CSS_VAR_OFFSET_X, `${viewport.offsetX}px`);
+		this.transform.style.setProperty(VIEWPORT_CSS_VAR_OFFSET_Y, `${viewport.offsetY}px`);
+		this.transform.style.setProperty(VIEWPORT_CSS_VAR_ZOOM, String(viewport.zoomLevel));
 	}
 
-	private applyBackgroundFromStore() {
+	private applyBackgroundFromState() {
 		if (!this.container) return;
-		const state = useEditorGridStore.getState();
+		const state = this.ports.read.getState();
 		applyCanvasBackgroundCssVariables(
 			this.container,
 			{

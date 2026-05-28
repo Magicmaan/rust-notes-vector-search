@@ -1,4 +1,5 @@
-import type { AnyCanvasElementDisplay } from "@/types";
+import type { AnyCanvasElementDisplay, CanvasElementVariant } from "@/types";
+import type { ExcludeIds } from "@/lib/movement-commit";
 
 export type CanvasEventInputKind =
 	| "pointerDown"
@@ -9,10 +10,6 @@ export type CanvasEventInputKind =
 	| "keyDown"
 	| "keyUp"
 	| "blur";
-
-export type RuntimeEventKind = "mount";
-
-export type RuntimeRenderCallbackKind = "render";
 
 export type RuntimeInputEventBase<T extends CanvasEventInputKind> = {
 	pointerId: number;
@@ -42,7 +39,65 @@ export type RuntimeSnapshot = {
 	lockout: boolean;
 };
 
-export type FrameContext<T> = {
+export type RuntimeTargetInfo = {
+	elementId: string | null;
+	variant: CanvasElementVariant | null;
+	insideCanvas: boolean;
+};
+
+export type RuntimeReadState = {
+	gridSize: [number, number];
+	zoomLevel: number;
+	offsetX: number;
+	offsetY: number;
+	isPanning: boolean;
+	selectedNoteIds: string[];
+	elements: Record<string, AnyCanvasElementDisplay>;
+	elementIds: string[];
+};
+
+export type RuntimePorts = {
+	read: {
+		getState: () => RuntimeReadState;
+		subscribeViewport: (listener: () => void) => () => void;
+	};
+	write: {
+		setSelectedNoteIds: (ids: string[]) => void;
+		clearSelectedNoteIds: () => void;
+		updateElementsBulk: (elements: AnyCanvasElementDisplay[]) => void;
+		setViewportOffset: (offsetX: number, offsetY: number) => void;
+		setViewportTransform: (zoomLevel: number, offsetX: number, offsetY: number) => void;
+		startPan: () => void;
+		endPan: (commit: boolean) => void;
+	};
+	query: {
+		getElement: (id: string) => AnyCanvasElementDisplay | undefined;
+		findOccupyingIds: (
+			x: number,
+			y: number,
+			width: number,
+			height: number,
+			excludeIds?: ExcludeIds,
+		) => string[];
+		isAreaFree: (
+			x: number,
+			y: number,
+			width: number,
+			height: number,
+			excludeIds?: ExcludeIds,
+		) => boolean;
+		findNearestFree: (
+			x: number,
+			y: number,
+			width: number,
+			height: number,
+			excludeIds?: ExcludeIds,
+			maxRadius?: number,
+		) => { x: number; y: number } | null;
+	};
+};
+
+export type FrameContext<T = InputEventContext> = {
 	gridSize: [number, number];
 	container: HTMLDivElement;
 	transform: HTMLDivElement | null;
@@ -51,10 +106,12 @@ export type FrameContext<T> = {
 		offsetX: number;
 		offsetY: number;
 	};
+	ports: RuntimePorts;
 } & T;
 
 export type InputEventContext = {
 	event: RuntimeInputEvent;
+	target: RuntimeTargetInfo;
 	pointer: {
 		screenX: number;
 		screenY: number;
@@ -68,53 +125,54 @@ export type InputEventContext = {
 	marqueeRect: { x: number; y: number; width: number; height: number } | null;
 };
 
-// Canvas operations are the way a plugin can cause changes to the canvas state. They are returned from plugin callbacks and then executed by the runtime.
-// A plugin has free access to its own internal state, and can read the canvas state from FrameContext
-// TODO: Very much improve to a more typical operation pattern, with more specific operation types and payloads, and better typing. Need to do a light reading on ASTs (Abstract Syntax Trees) and how to design an operation system that is easy to use and extend, but also very type safe and specific.
 export type CanvasOperation =
-	| { type: "setFlag"; key: "spaceHeld"; value: boolean }
-	| { type: "setFlag"; key: "isPanning"; value: boolean }
-	| { type: "setPanState"; value: boolean }
-	| { type: "setCssVar"; name: string; value: string }
+	| { type: "selection.set"; ids: string[] }
+	| { type: "selection.clear" }
+	| { type: "selection.toggle"; id: string }
+	| { type: "element.previewBulk"; elements: AnyCanvasElementDisplay[] }
+	| { type: "element.commitBulk"; elements: AnyCanvasElementDisplay[] }
+	| { type: "element.rollbackSession"; elements: AnyCanvasElementDisplay[] }
+	| { type: "viewport.setOffset"; offsetX: number; offsetY: number }
 	| {
-			type: "setViewportTransform";
+			type: "viewport.setTransform";
 			zoomLevel: number;
 			offsetX: number;
 			offsetY: number;
 	  }
+	| { type: "viewport.beginPan" }
+	| { type: "viewport.endPan"; commit: boolean }
+	| { type: "interaction.setLockout"; value: boolean }
+	| { type: "interaction.setSpaceHeld"; value: boolean }
+	| { type: "interaction.setPanning"; value: boolean }
 	| {
-			type: "setViewportOffset";
-			offsetX: number;
-			offsetY: number;
-	  }
-	| {
-			type: "setMarqueeRect";
+			type: "ui.setMarqueeRect";
 			rect: { x: number; y: number; width: number; height: number } | null;
 	  }
 	| {
-			type: "setSelection";
-			ids: string[];
+			type: "ui.setCssVar";
+			name: string;
+			value: string;
 	  }
 	| {
-			type: "clearSelection";
-	  }
-	| {
-			type: "updateElementsBulk";
-			elements: AnyCanvasElementDisplay[];
-	  }
-	| {
-			type: "applyBackground";
+			type: "ui.applyBackground";
 			zoomLevel: number;
 			offsetX: number;
 			offsetY: number;
+	  }
+	| {
+			type: "ui.setResizeAttrs";
+			elementId: string;
+			state: string;
+			heading: "none" | "left" | "right" | "top" | "bottom";
 	  };
 
-//   updateElement
-//   updateElements
-//   viewportDelta
-//   setSelected
+export type OperationResult = CanvasOperation | CanvasOperation[] | null;
+
 export type CanvasCallback = (
 	context: FrameContext<InputEventContext>,
-) => CanvasOperation | CanvasOperation[] | null | undefined;
+) => OperationResult;
 
-export type CanvasRenderCallback = (context: FrameContext<null>) => void;
+export type RuntimeExecutionTrace = {
+	eventKind: CanvasEventInputKind;
+	operations: CanvasOperation[];
+};

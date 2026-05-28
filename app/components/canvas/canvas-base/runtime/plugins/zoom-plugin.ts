@@ -60,28 +60,28 @@ export class ZoomPlugin extends PluginBase<ZoomPluginState> {
 
 		return [
 			{
-				type: "setCssVar",
+				type: "ui.setCssVar",
 				name: VIEWPORT_CSS_VAR_OFFSET_X,
 				value: `${offsetX}px`,
 			},
 			{
-				type: "setCssVar",
+				type: "ui.setCssVar",
 				name: VIEWPORT_CSS_VAR_OFFSET_Y,
 				value: `${offsetY}px`,
 			},
 			{
-				type: "setCssVar",
+				type: "ui.setCssVar",
 				name: VIEWPORT_CSS_VAR_ZOOM,
 				value: String(targetZoom),
 			},
 			{
-				type: "setViewportTransform",
+				type: "viewport.setTransform",
 				zoomLevel: targetZoom,
 				offsetX,
 				offsetY,
 			},
 			{
-				type: "applyBackground",
+				type: "ui.applyBackground",
 				zoomLevel: targetZoom,
 				offsetX,
 				offsetY,

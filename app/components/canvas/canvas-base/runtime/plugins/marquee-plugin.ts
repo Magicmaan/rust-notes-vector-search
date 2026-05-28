@@ -1,5 +1,4 @@
 import type { AnyCanvasElementDisplay } from "@/types";
-import { useEditorGridStore } from "@/providers/editor/store";
 import { resolveMovementCommit } from "@/lib/movement-commit";
 import { DRAG_THRESHOLD_PX } from "@/lib/drag-config";
 import {
@@ -82,7 +81,8 @@ export default class MarqueePlugin extends PluginBase<MarqueePluginState> {
 		width: number;
 		height: number;
 	}) {
-		const state = useEditorGridStore.getState();
+		const state = this.runtime?.getPorts().read.getState();
+		if (!state) return [];
 		const intersectingIds = getIntersectingNoteIds({
 			rect,
 			elements: state.elements,
@@ -118,7 +118,8 @@ export default class MarqueePlugin extends PluginBase<MarqueePluginState> {
 			return null;
 		}
 
-		const state = useEditorGridStore.getState();
+		const ports = context.ports;
+		const state = ports.read.getState();
 		const committedRect = context.marqueeRect;
 
 		if (
@@ -199,6 +200,31 @@ export default class MarqueePlugin extends PluginBase<MarqueePluginState> {
 	): null | CanvasOperation | CanvasOperation[] {
 		if (
 			this.selection.clicking &&
+			this.state.groupTarget &&
+			context.event.pointerId === this.selection.pointerId
+		) {
+			const deltaPixelX = context.pointer.screenX - this.selection.startScreenX;
+			const deltaPixelY = context.pointer.screenY - this.selection.startScreenY;
+			const groupTarget = this.state.groupTarget;
+			return [
+				{
+					type: "element.previewBulk",
+					elements: groupTarget.buildPreview(deltaPixelX, deltaPixelY),
+				},
+				{
+					type: "ui.setMarqueeRect",
+					rect: {
+						x: groupTarget.bounds.pixelX + deltaPixelX,
+						y: groupTarget.bounds.pixelY + deltaPixelY,
+						width: groupTarget.bounds.pixelWidth,
+						height: groupTarget.bounds.pixelHeight,
+					},
+				},
+			];
+		}
+
+		if (
+			this.selection.clicking &&
 			context.event.pointerId === this.selection.pointerId
 		) {
 			const deltaX = context.pointer.screenX - this.selection.startScreenX;
@@ -217,35 +243,11 @@ export default class MarqueePlugin extends PluginBase<MarqueePluginState> {
 			);
 			const ids = this.applySelection(rect);
 			return [
-				{ type: "setMarqueeRect", rect },
-				{ type: "setSelection", ids },
+				{ type: "ui.setMarqueeRect", rect },
+				{ type: "selection.set", ids },
 			] as CanvasOperation[];
 		}
 
-		if (
-			this.selection.clicking &&
-			this.state.groupTarget &&
-			context.event.pointerId === this.selection.pointerId
-		) {
-			const deltaPixelX = context.pointer.screenX - this.selection.startScreenX;
-			const deltaPixelY = context.pointer.screenY - this.selection.startScreenY;
-			const groupTarget = this.state.groupTarget;
-			return [
-				{
-					type: "updateElementsBulk",
-					elements: groupTarget.buildPreview(deltaPixelX, deltaPixelY),
-				},
-				{
-					type: "setMarqueeRect",
-					rect: {
-						x: groupTarget.bounds.pixelX + deltaPixelX,
-						y: groupTarget.bounds.pixelY + deltaPixelY,
-						width: groupTarget.bounds.pixelWidth,
-						height: groupTarget.bounds.pixelHeight,
-					},
-				},
-			];
-		}
 		return null;
 	}
 
@@ -254,35 +256,14 @@ export default class MarqueePlugin extends PluginBase<MarqueePluginState> {
 	): null | CanvasOperation | CanvasOperation[] {
 		if (
 			this.selection.clicking &&
-			context.event.pointerId === this.selection.pointerId
-		) {
-			this.selection.clicking = false;
-			this.selection.pointerId = -1;
-			if (!this.selection.dragging) {
-				return { type: "setMarqueeRect", rect: null } as CanvasOperation;
-			}
-			const rect = normalizeRect(
-				this.selection.startWorldX,
-				this.selection.startWorldY,
-				context.pointer.worldX,
-				context.pointer.worldY,
-			);
-			const ids = this.applySelection(rect);
-			return [
-				{ type: "setMarqueeRect", rect },
-				{ type: "setSelection", ids },
-			];
-		}
-
-		if (
-			this.selection.clicking &&
 			this.state.groupTarget &&
 			context.event.pointerId === this.selection.pointerId
 		) {
 			const deltaPixelX = context.pointer.screenX - this.selection.startScreenX;
 			const deltaPixelY = context.pointer.screenY - this.selection.startScreenY;
 			const groupTarget = this.state.groupTarget;
-			const state = useEditorGridStore.getState();
+			const ports = context.ports;
+			const state = ports.read.getState();
 			const [cellWidth, cellHeight] = state.gridSize;
 			const result = resolveMovementCommit({
 				bounds: {
@@ -299,8 +280,8 @@ export default class MarqueePlugin extends PluginBase<MarqueePluginState> {
 				cellHeight,
 				excludeIds: groupTarget.selectedIds,
 				searchRadius: GROUP_SNAP_SEARCH_RADIUS,
-				isAreaFree: state.isAreaFree,
-				findNearestFree: state.findNearestFree,
+				isAreaFree: ports.query.isAreaFree,
+				findNearestFree: ports.query.findNearestFree,
 			});
 
 			this.selection.clicking = false;
@@ -317,20 +298,39 @@ export default class MarqueePlugin extends PluginBase<MarqueePluginState> {
 				height: groupTarget.bounds.pixelHeight,
 			};
 			return [
-				{ type: "updateElementsBulk", elements },
-				{ type: "setMarqueeRect", rect },
+				{ type: "element.commitBulk", elements },
+				{ type: "ui.setMarqueeRect", rect },
 			];
 		}
+
+		if (
+			this.selection.clicking &&
+			context.event.pointerId === this.selection.pointerId
+		) {
+			this.selection.clicking = false;
+			this.selection.pointerId = -1;
+			if (!this.selection.dragging) {
+				return { type: "ui.setMarqueeRect", rect: null } as CanvasOperation;
+			}
+			const rect = normalizeRect(
+				this.selection.startWorldX,
+				this.selection.startWorldY,
+				context.pointer.worldX,
+				context.pointer.worldY,
+			);
+			const ids = this.applySelection(rect);
+			return [
+				{ type: "ui.setMarqueeRect", rect },
+				{ type: "selection.set", ids },
+			];
+		}
+
 		return null;
 	}
 
 	protected override onPointerCancel(
 		ctx: FrameContext,
 	): null | CanvasOperation | CanvasOperation[] {
-		if (this.selection.clicking) {
-			this.selection.clicking = false;
-			return { type: "setMarqueeRect", rect: null } as CanvasOperation;
-		}
 		if (this.selection.clicking && this.state.groupTarget) {
 			const elements: AnyCanvasElementDisplay[] =
 				this.state.groupTarget.rollback();
@@ -338,9 +338,13 @@ export default class MarqueePlugin extends PluginBase<MarqueePluginState> {
 			this.selection.pointerId = -1;
 			this.state.groupTarget = null;
 			return [
-				{ type: "updateElementsBulk", elements },
-				{ type: "setMarqueeRect", rect: null },
+				{ type: "element.rollbackSession", elements },
+				{ type: "ui.setMarqueeRect", rect: null },
 			] as CanvasOperation[];
+		}
+		if (this.selection.clicking) {
+			this.selection.clicking = false;
+			return { type: "ui.setMarqueeRect", rect: null } as CanvasOperation;
 		}
 		return null;
 	}
@@ -363,14 +367,14 @@ export default class MarqueePlugin extends PluginBase<MarqueePluginState> {
 		if (!committedRect) return null;
 		const target = context.event.target as Node | null;
 		if (!target || !context.container.contains(target)) {
-			return { type: "clearSelection" };
+			return { type: "selection.clear" };
 		}
 		const inside = pointInsideRect(
 			{ x: context.pointer.worldX, y: context.pointer.worldY },
 			committedRect,
 		);
 		if (!inside) {
-			return { type: "clearSelection" };
+			return { type: "selection.clear" };
 		}
 		return null;
 	}
@@ -505,8 +509,8 @@ export default class MarqueePlugin extends PluginBase<MarqueePluginState> {
 // 			);
 // 			const ids = applySelection(rect);
 // 			return [
-// 				{ type: "setMarqueeRect", rect },
-// 				{ type: "setSelection", ids },
+// 				{ type: "ui.setMarqueeRect", rect },
+// 				{ type: "selection.set", ids },
 // 			];
 // 		}
 
@@ -522,11 +526,11 @@ export default class MarqueePlugin extends PluginBase<MarqueePluginState> {
 // 			const groupTarget = groupMoveSession.groupTarget;
 // 			return [
 // 				{
-// 					type: "updateElementsBulk",
+// 					type: "element.previewBulk",
 // 					elements: groupTarget.buildPreview(deltaPixelX, deltaPixelY),
 // 				},
 // 				{
-// 					type: "setMarqueeRect",
+// 					type: "ui.setMarqueeRect",
 // 					rect: {
 // 						x: groupTarget.bounds.pixelX + deltaPixelX,
 // 						y: groupTarget.bounds.pixelY + deltaPixelY,
@@ -547,7 +551,7 @@ export default class MarqueePlugin extends PluginBase<MarqueePluginState> {
 // 			selectionSession.active = false;
 // 			selectionSession.pointerId = -1;
 // 			if (!selectionSession.dragging) {
-// 				return { type: "setMarqueeRect", rect: null };
+// 				return { type: "ui.setMarqueeRect", rect: null };
 // 			}
 // 			const rect = normalizeRect(
 // 				selectionSession.startWorldX,
@@ -557,8 +561,8 @@ export default class MarqueePlugin extends PluginBase<MarqueePluginState> {
 // 			);
 // 			const ids = applySelection(rect);
 // 			return [
-// 				{ type: "setMarqueeRect", rect },
-// 				{ type: "setSelection", ids },
+// 				{ type: "ui.setMarqueeRect", rect },
+// 				{ type: "selection.set", ids },
 // 			];
 // 		}
 
@@ -607,8 +611,8 @@ export default class MarqueePlugin extends PluginBase<MarqueePluginState> {
 // 				height: groupTarget.bounds.pixelHeight,
 // 			};
 // 			return [
-// 				{ type: "updateElementsBulk", elements },
-// 				{ type: "setMarqueeRect", rect },
+// 				{ type: "element.previewBulk", elements },
+// 				{ type: "ui.setMarqueeRect", rect },
 // 			];
 // 		}
 // 		return null;
@@ -617,7 +621,7 @@ export default class MarqueePlugin extends PluginBase<MarqueePluginState> {
 // 	const onMarqueePointerCancel: CanvasCallback = () => {
 // 		if (selectionSession.active) {
 // 			selectionSession.active = false;
-// 			return { type: "setMarqueeRect", rect: null };
+// 			return { type: "ui.setMarqueeRect", rect: null };
 // 		}
 // 		if (groupMoveSession.clicking && groupMoveSession.groupTarget) {
 // 			const elements: AnyCanvasElementDisplay[] =
@@ -626,8 +630,8 @@ export default class MarqueePlugin extends PluginBase<MarqueePluginState> {
 // 			groupMoveSession.pointerId = -1;
 // 			groupMoveSession.groupTarget = null;
 // 			return [
-// 				{ type: "updateElementsBulk", elements },
-// 				{ type: "setMarqueeRect", rect: null },
+// 				{ type: "element.previewBulk", elements },
+// 				{ type: "ui.setMarqueeRect", rect: null },
 // 			];
 // 		}
 // 		return null;
@@ -639,7 +643,7 @@ export default class MarqueePlugin extends PluginBase<MarqueePluginState> {
 // 			groupMoveSession.clicking = false;
 // 			groupMoveSession.pointerId = -1;
 // 			groupMoveSession.groupTarget = null;
-// 			return { type: "setMarqueeRect", rect: null };
+// 			return { type: "ui.setMarqueeRect", rect: null };
 // 		}
 // 		return null;
 // 	};
@@ -651,14 +655,14 @@ export default class MarqueePlugin extends PluginBase<MarqueePluginState> {
 // 		if (!committedRect) return null;
 // 		const target = context.event.target as Node | null;
 // 		if (!target || !context.container.contains(target)) {
-// 			return { type: "clearSelection" };
+// 			return { type: "selection.clear" };
 // 		}
 // 		const inside = pointInsideRect(
 // 			{ x: context.pointer.worldX, y: context.pointer.worldY },
 // 			committedRect,
 // 		);
 // 		if (!inside) {
-// 			return { type: "clearSelection" };
+// 			return { type: "selection.clear" };
 // 		}
 // 		return null;
 // 	};

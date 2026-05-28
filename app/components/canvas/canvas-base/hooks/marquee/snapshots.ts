@@ -1,5 +1,5 @@
 import { cloneElementWithGeometry, type AnyCanvasElementDisplay } from "@/types";
-import { useEditorGridStore } from "@/providers/editor/store";
+import type { RuntimeReadState } from "../../runtime/types";
 import type {
 	GroupMoveBounds,
 	GroupMoveSnapshotItem,
@@ -43,7 +43,7 @@ export function toGroupMoveBounds(
 }
 
 export function buildGroupMoveSnapshots(
-	state: ReturnType<typeof useEditorGridStore.getState>,
+	state: RuntimeReadState,
 ): GroupMoveSnapshotItem[] {
 	return state.selectedNoteIds
 		.map((id) => state.elements[id])

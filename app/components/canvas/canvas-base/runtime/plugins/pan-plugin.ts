@@ -33,20 +33,20 @@ export class PanPlugin extends PluginBase<PanPluginState> {
 
 		if (!commit) {
 			return [
-				{ type: "setFlag", key: "isPanning", value: false },
-				{ type: "setPanState", value: false },
+				{ type: "interaction.setPanning", value: false },
+				{ type: "viewport.endPan", commit: false },
 				{
-					type: "setCssVar",
+					type: "ui.setCssVar",
 					name: VIEWPORT_CSS_VAR_OFFSET_X,
 					value: `${this.originX}px`,
 				},
 				{
-					type: "setCssVar",
+					type: "ui.setCssVar",
 					name: VIEWPORT_CSS_VAR_OFFSET_Y,
 					value: `${this.originY}px`,
 				},
 				{
-					type: "applyBackground",
+					type: "ui.applyBackground",
 					zoomLevel: context.viewport.zoomLevel,
 					offsetX: this.originX,
 					offsetY: this.originY,
@@ -57,15 +57,15 @@ export class PanPlugin extends PluginBase<PanPluginState> {
 		const committedOffsetX = this.originX + deltaX;
 		const committedOffsetY = this.originY + deltaY;
 		return [
-			{ type: "setFlag", key: "isPanning", value: false },
-			{ type: "setPanState", value: false },
+			{ type: "interaction.setPanning", value: false },
+			{ type: "viewport.endPan", commit: true },
 			{
-				type: "setViewportOffset",
+				type: "viewport.setOffset",
 				offsetX: committedOffsetX,
 				offsetY: committedOffsetY,
 			},
 			{
-				type: "applyBackground",
+				type: "ui.applyBackground",
 				zoomLevel: context.viewport.zoomLevel,
 				offsetX: committedOffsetX,
 				offsetY: committedOffsetY,
@@ -76,8 +76,7 @@ export class PanPlugin extends PluginBase<PanPluginState> {
 	protected override onKeyDown(context: FrameContext): CanvasOperation | null {
 		if (context.event.code === "Space" || context.event.key === " ") {
 			return {
-				type: "setFlag",
-				key: "spaceHeld",
+				type: "interaction.setSpaceHeld",
 				value: true,
 			} as CanvasOperation;
 		}
@@ -87,8 +86,7 @@ export class PanPlugin extends PluginBase<PanPluginState> {
 	protected override onKeyUp(context: FrameContext): CanvasOperation | null {
 		if (context.event.code === "Space" || context.event.key === " ") {
 			return {
-				type: "setFlag",
-				key: "spaceHeld",
+				type: "interaction.setSpaceHeld",
 				value: false,
 			} as CanvasOperation;
 		}
@@ -115,8 +113,8 @@ export class PanPlugin extends PluginBase<PanPluginState> {
 		this.originX = context.viewport.offsetX;
 		this.originY = context.viewport.offsetY;
 		return [
-			{ type: "setFlag", key: "isPanning", value: true },
-			{ type: "setPanState", value: true },
+			{ type: "interaction.setPanning", value: true },
+			{ type: "viewport.beginPan" },
 		];
 	}
 
@@ -136,17 +134,17 @@ export class PanPlugin extends PluginBase<PanPluginState> {
 		const offsetY = this.originY + deltaY;
 		return [
 			{
-				type: "setCssVar",
+				type: "ui.setCssVar",
 				name: VIEWPORT_CSS_VAR_OFFSET_X,
 				value: `${offsetX}px`,
 			},
 			{
-				type: "setCssVar",
+				type: "ui.setCssVar",
 				name: VIEWPORT_CSS_VAR_OFFSET_Y,
 				value: `${offsetY}px`,
 			},
 			{
-				type: "applyBackground",
+				type: "ui.applyBackground",
 				zoomLevel: context.viewport.zoomLevel,
 				offsetX,
 				offsetY,

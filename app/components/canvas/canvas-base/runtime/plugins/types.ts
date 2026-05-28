@@ -1,12 +1,10 @@
 import { CanvasRuntime } from "../canvas-runtime";
-import { CanvasRenderCallback } from "../types";
 import type {
 	CanvasCallback,
-	CanvasOperation,
+	OperationResult,
 	FrameContext,
 	InputEventContext,
 	CanvasEventInputKind,
-	RuntimeRenderCallbackKind,
 } from "../types";
 
 type newSelectionSessionBase = {
@@ -24,13 +22,7 @@ type newSelectionSessionBase = {
 // conditional type
 // RuntimeCallbackKind:  CanvasCallback
 // RuntimeRenderCallbackKind: CanvasRenderCallback
-type PluginHandlers = {
-	[K in
-		| CanvasEventInputKind
-		| RuntimeRenderCallbackKind]?: K extends RuntimeRenderCallbackKind
-		? CanvasRenderCallback[]
-		: CanvasCallback[];
-};
+type PluginHandlers = Partial<Record<CanvasEventInputKind, CanvasCallback[]>>;
 
 /**
  * A Base Plugin class to extend from.
@@ -43,6 +35,7 @@ export class PluginBase<State = any> {
 	version: string = "1.0.0";
 
 	state: State = {} as State;
+	protected runtime: CanvasRuntime | null = null;
 
 	getState() {
 		return this.state;
@@ -99,6 +92,7 @@ export class PluginBase<State = any> {
 	 * @param runtime Canvas runtime
 	 */
 	mount(runtime: CanvasRuntime) {
+		this.runtime = runtime;
 		if (this.unregisterCallbacks) {
 			this.unregisterCallbacks = null;
 		}
@@ -107,8 +101,7 @@ export class PluginBase<State = any> {
 
 		const callbacks = [];
 		for (const kind in handlers) {
-			const handlerList =
-				handlers[kind as CanvasEventInputKind | RuntimeRenderCallbackKind];
+			const handlerList = handlers[kind as CanvasEventInputKind];
 			if (!handlerList) continue;
 			for (const handler of handlerList) {
 				callbacks.push(
@@ -123,6 +116,7 @@ export class PluginBase<State = any> {
 	 * ran on unmount of canvas, unregisters callbacks from the runtime
 	 */
 	unmount() {
+		this.runtime = null;
 		if (this.unregisterCallbacks) {
 			for (const cleanup of this.unregisterCallbacks) {
 				console.log("Cleaning up plugin callback:", this.name);
@@ -134,42 +128,42 @@ export class PluginBase<State = any> {
 	protected onRender(context: FrameContext<{}>): void {}
 	protected onPointerDown(
 		ctx: FrameContext<InputEventContext>,
-	): CanvasOperation | CanvasOperation[] | null | undefined {
+	): OperationResult | undefined {
 		return null;
 	}
 	protected onPointerMove(
 		ctx: FrameContext<InputEventContext>,
-	): CanvasOperation | CanvasOperation[] | null | undefined {
+	): OperationResult | undefined {
 		return null;
 	}
 	protected onPointerUp(
 		ctx: FrameContext<InputEventContext>,
-	): CanvasOperation | CanvasOperation[] | null | undefined {
+	): OperationResult | undefined {
 		return null;
 	}
 	protected onPointerCancel(
 		ctx: FrameContext<InputEventContext>,
-	): CanvasOperation | CanvasOperation[] | null | undefined {
+	): OperationResult | undefined {
 		return null;
 	}
 	protected onWheel(
 		ctx: FrameContext<InputEventContext>,
-	): CanvasOperation | CanvasOperation[] | null | undefined {
+	): OperationResult | undefined {
 		return null;
 	}
 	protected onKeyDown(
 		ctx: FrameContext<InputEventContext>,
-	): CanvasOperation | CanvasOperation[] | null | undefined {
+	): OperationResult | undefined {
 		return null;
 	}
 	protected onKeyUp(
 		ctx: FrameContext<InputEventContext>,
-	): CanvasOperation | CanvasOperation[] | null | undefined {
+	): OperationResult | undefined {
 		return null;
 	}
 	protected onBlur(
 		ctx: FrameContext<InputEventContext>,
-	): CanvasOperation | CanvasOperation[] | null | undefined {
+	): OperationResult | undefined {
 		return null;
 	}
 }
