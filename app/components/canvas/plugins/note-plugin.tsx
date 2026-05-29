@@ -10,9 +10,14 @@ import CanvasElementBase from "../canvas-element-base";
 function NoteContent({
 	element,
 	tools,
+	runtimeUi,
 }: {
 	element: NoteDisplay;
 	tools: React.ReactNode;
+	runtimeUi?: {
+		resizeState?: string;
+		resizeHeading?: "none" | "left" | "right" | "top" | "bottom";
+	};
 }) {
 	const mockCard = useMemo(
 		() => getThoughtSpaceCardMock(element.id),
@@ -23,6 +28,8 @@ function NoteContent({
 		<CanvasElementBase
 			element={element}
 			enableResize
+			resizeState={runtimeUi?.resizeState ?? "none"}
+			resizeHeading={runtimeUi?.resizeHeading ?? "none"}
 			frameClassName={clsx(isRoadmapCard && "ts-note-roadmap")}
 			surfaceClassName={clsx(
 				"select-none",
@@ -47,8 +54,8 @@ function NoteContent({
 export const noteElementDefinition: CanvasElementDefinition<NoteDisplay> = {
 	variant: "note",
 	canResize: (_element, options) => options?.enableResize ?? true,
-	render: ({ element, tools }) => (
-		<NoteContent element={element} tools={tools} />
+	render: ({ element, tools, runtimeUi }) => (
+		<NoteContent element={element} tools={tools} runtimeUi={runtimeUi} />
 	),
 };
 

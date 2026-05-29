@@ -122,9 +122,21 @@ export default function Canvas({ children }: { children?: React.ReactNode }) {
 					}
 				>
 					<div className="w-auto h-auto">
-						{elementIds.map((id) => (
-							<Note id={id} key={id} fullscreen={false} />
-						))}
+						{elementIds.map((id) => {
+							const resizeUi = runtimeSnapshot.resizeUiById[id];
+							return (
+								<Note
+									key={id}
+									id={id}
+									fullscreen={false}
+									previewElement={runtimeSnapshot.previewElementsById[id]}
+									runtimeUi={{
+										resizeState: resizeUi?.state,
+										resizeHeading: resizeUi?.heading,
+									}}
+								/>
+							);
+						})}
 					</div>
 					{runtimeSnapshot.marqueeRect ? (
 						<div

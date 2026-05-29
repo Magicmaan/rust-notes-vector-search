@@ -1,14 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { AnyCanvasElementDisplay } from "@/types";
 import { useEditorGridStore } from "@/providers/editor/store";
 import { useShallow } from "zustand/react/shallow";
 import { useGridMetrics } from "./hooks/useGridMetrics";
-
-function isCanvasLockoutActive(node: HTMLDivElement | null) {
-	if (!node) return false;
-	const container = node.closest("#editor-grid-container");
-	return container?.getAttribute("data-canvas-lockout") === "true";
-}
 
 export function useCanvasElementCore(
 	element: AnyCanvasElementDisplay,
@@ -17,7 +11,6 @@ export function useCanvasElementCore(
 	const wrapperRef = useRef<HTMLDivElement>(null);
 
 	const selectedNoteIds = useEditorGridStore((s) => s.selectedNoteIds);
-	const setSelectedNoteIds = useEditorGridStore((s) => s.setSelectedNoteIds);
 	const isSelected = selectedNoteIds.includes(element.id);
 	const isMultiSelected = isSelected && selectedNoteIds.length > 1;
 
@@ -35,30 +28,6 @@ export function useCanvasElementCore(
 		elementX: element.x,
 		elementY: element.y,
 	});
-
-	const handlePointerDown = useCallback(
-		(e: React.PointerEvent<HTMLDivElement>) => {
-			if (isCanvasLockoutActive(wrapperRef.current)) {
-				e.preventDefault();
-				return;
-			}
-			if (e.button !== 0) {
-				return;
-			}
-			if (e.shiftKey) {
-				if (isSelected) {
-					setSelectedNoteIds(selectedNoteIds.filter((id) => id !== element.id));
-					return;
-				}
-				setSelectedNoteIds([...selectedNoteIds, element.id]);
-				return;
-			}
-			if (!isSelected || selectedNoteIds.length > 1) {
-				setSelectedNoteIds([element.id]);
-			}
-		},
-		[element.id, isSelected, selectedNoteIds, setSelectedNoteIds],
-	);
 
 	const initialTransforms = useMemo(() => {
 		return {
@@ -83,6 +52,5 @@ export function useCanvasElementCore(
 		isSelected,
 		isMultiSelected,
 		initialTransforms,
-		handlePointerDown,
 	};
 }

@@ -4,6 +4,10 @@ import type { ReactNode } from "react";
 type DefinitionRenderArgs<T extends AnyCanvasElementDisplay> = {
 	element: T;
 	tools: ReactNode;
+	runtimeUi?: {
+		resizeState?: string;
+		resizeHeading?: "none" | "left" | "right" | "top" | "bottom";
+	};
 };
 
 export type CanvasElementDefinition<T extends AnyCanvasElementDisplay = AnyCanvasElementDisplay> = {

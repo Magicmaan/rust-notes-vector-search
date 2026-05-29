@@ -6,9 +6,11 @@ import {
 } from "../constants/viewport-css-vars";
 import { worldPointFromClient } from "../util/viewport-transform";
 import type {
+	AnyCanvasElementDisplay,
 	CanvasCallback,
 	CanvasEventInputKind,
 	CanvasOperation,
+	CanvasOperationPhase,
 	FrameContext,
 	InputEventContext,
 	RuntimeExecutionTrace,
@@ -16,6 +18,7 @@ import type {
 	RuntimePorts,
 	RuntimeSnapshot,
 	RuntimeTargetInfo,
+	RuntimeValidationIssue,
 } from "./types";
 import { PluginHandler } from "./plugins";
 import type { PluginBase } from "./plugins/types";
@@ -25,9 +28,20 @@ type RuntimeState = {
 	isPanning: boolean;
 	lockout: boolean;
 	marqueeRect: { x: number; y: number; width: number; height: number } | null;
+	activeSessions: Record<string, { kind: "note.drag" | "note.resize" }>;
+	previewElementsById: Record<string, AnyCanvasElementDisplay>;
+	resizeUiById: Record<
+		string,
+		{
+			state: string;
+			heading: "none" | "left" | "right" | "top" | "bottom";
+		}
+	>;
 };
 
 type RuntimeListener = () => void;
+const TRACE_ENABLED = import.meta.env.VITE_CANVAS_RUNTIME_TRACE === "1";
+const TRACE_BUFFER_LIMIT = 50;
 
 export class CanvasRuntime {
 	private container: HTMLDivElement | null = null;
@@ -39,6 +53,9 @@ export class CanvasRuntime {
 		isPanning: false,
 		lockout: false,
 		marqueeRect: null,
+		activeSessions: {},
+		previewElementsById: {},
+		resizeUiById: {},
 	};
 
 	private callbacks: Record<CanvasEventInputKind, Set<CanvasCallback>> = {
@@ -58,9 +75,12 @@ export class CanvasRuntime {
 		isPanning: false,
 		spaceHeld: false,
 		lockout: false,
+		previewElementsById: {},
+		resizeUiById: {},
 	};
 	private pluginHandler: PluginHandler;
 	private lastTrace: RuntimeExecutionTrace | null = null;
+	private traceBuffer: RuntimeExecutionTrace[] = [];
 
 	constructor(ports: RuntimePorts, plugins: PluginBase[] = []) {
 		this.ports = ports;
@@ -104,6 +124,8 @@ export class CanvasRuntime {
 		this.syncLockout(false);
 		this.container = null;
 		this.transform = null;
+		this.state.previewElementsById = {};
+		this.state.resizeUiById = {};
 		this.pluginHandler.unmount();
 	}
 
@@ -124,6 +146,10 @@ export class CanvasRuntime {
 		return this.lastTrace;
 	}
 
+	getTraceBuffer() {
+		return this.traceBuffer;
+	}
+
 	subscribe(listener: RuntimeListener) {
 		this.listeners.add(listener);
 		return () => this.listeners.delete(listener);
@@ -139,9 +165,40 @@ export class CanvasRuntime {
 	dispatch(event: RuntimeInputEvent) {
 		const context = this.buildFrameContext(event);
 		if (!context) return;
-		const operations = this.runCallbacks(event.kind, context);
-		this.lastTrace = { eventKind: event.kind, operations };
-		this.commitOperations(operations);
+		const emitted = this.runCallbacks(event.kind, context);
+		const validation = this.validateOperations(emitted);
+		const sortedOps = this.sortOperationsByPhase(emitted);
+		const applied = this.commitOperations(sortedOps);
+		this.lastTrace = {
+			timestamp: event.timestamp,
+			eventKind: event.kind,
+			target: context.target,
+			pointer: context.pointer,
+			emitted,
+			sorted: sortedOps.map((operation) => ({
+				operation,
+				phase: this.operationPhase(operation),
+			})),
+			applied,
+			validation,
+		};
+		this.traceBuffer.push(this.lastTrace);
+		if (this.traceBuffer.length > TRACE_BUFFER_LIMIT) {
+			this.traceBuffer.shift();
+		}
+		if (TRACE_ENABLED) {
+			console.groupCollapsed(
+				`[CanvasRuntime Trace] ${event.kind} @ ${Math.round(context.pointer.screenX)},${Math.round(context.pointer.screenY)}`,
+			);
+			console.log("target", this.lastTrace.target);
+			console.log("emitted", this.lastTrace.emitted);
+			console.log("sorted", this.lastTrace.sorted);
+			console.log("applied", this.lastTrace.applied);
+			if (this.lastTrace.validation.length > 0) {
+				console.log("validation", this.lastTrace.validation);
+			}
+			console.groupEnd();
+		}
 	}
 
 	private runCallbacks(
@@ -210,8 +267,8 @@ export class CanvasRuntime {
 	}
 
 	private commitOperations(operations: CanvasOperation[]) {
-		const sorted = [...operations].sort((a, b) => this.operationOrder(a) - this.operationOrder(b));
-		for (const operation of sorted) {
+		const applied: CanvasOperation[] = [];
+		for (const operation of operations) {
 			switch (operation.type) {
 				case "interaction.setSpaceHeld":
 					this.state.spaceHeld = operation.value;
@@ -224,6 +281,16 @@ export class CanvasRuntime {
 					break;
 				case "interaction.setPanning":
 					this.state.isPanning = operation.value;
+					break;
+				case "interaction.beginSession":
+					this.state.activeSessions[operation.sessionId] = {
+						kind: operation.kind,
+					};
+					break;
+				case "interaction.updateSession":
+					break;
+				case "interaction.endSession":
+					delete this.state.activeSessions[operation.sessionId];
 					break;
 				case "viewport.beginPan":
 					this.ports.write.startPan();
@@ -268,9 +335,21 @@ export class CanvasRuntime {
 					break;
 				}
 				case "element.previewBulk":
+					for (const element of operation.elements) {
+						this.state.previewElementsById[element.id] = element;
+					}
+					break;
 				case "element.commitBulk":
+					this.ports.write.updateElementsBulk(operation.elements);
+					for (const element of operation.elements) {
+						delete this.state.previewElementsById[element.id];
+					}
+					break;
 				case "element.rollbackSession":
 					this.ports.write.updateElementsBulk(operation.elements);
+					for (const element of operation.elements) {
+						delete this.state.previewElementsById[element.id];
+					}
 					break;
 				case "ui.setMarqueeRect":
 					this.state.marqueeRect = operation.rect;
@@ -292,45 +371,95 @@ export class CanvasRuntime {
 					}
 					break;
 				case "ui.setResizeAttrs": {
-					const node = document.querySelector(
-						`[data-canvas-element-id="${operation.elementId}"]`,
-					) as HTMLElement | null;
-					if (node) {
-						node.setAttribute("data-resizing", operation.state);
-						node.setAttribute("data-resize-heading", operation.heading);
-					}
+					this.state.resizeUiById[operation.elementId] = {
+						state: operation.state,
+						heading: operation.heading,
+					};
 					break;
 				}
 			}
+			applied.push(operation);
 		}
 		this.emitChange();
+		return applied;
 	}
 
 	private operationOrder(operation: CanvasOperation) {
+		const phaseOrder: Record<CanvasOperationPhase, number> = {
+			interaction: 1,
+			preview: 2,
+			commit: 3,
+			ui: 4,
+		};
+		return phaseOrder[this.operationPhase(operation)];
+	}
+
+	private operationPhase(operation: CanvasOperation): CanvasOperationPhase {
 		switch (operation.type) {
 			case "interaction.setSpaceHeld":
 			case "interaction.setLockout":
 			case "interaction.setPanning":
+			case "interaction.beginSession":
+			case "interaction.updateSession":
+			case "interaction.endSession":
 			case "viewport.beginPan":
 			case "viewport.endPan":
-				return 1;
-			case "ui.setCssVar":
-				return 2;
 			case "selection.set":
 			case "selection.clear":
 			case "selection.toggle":
+				return "interaction";
+			case "element.previewBulk":
+			case "ui.setCssVar":
 			case "ui.setMarqueeRect":
 			case "ui.setResizeAttrs":
-				return 3;
-			case "element.previewBulk":
+				return "preview";
 			case "element.commitBulk":
 			case "element.rollbackSession":
 			case "viewport.setOffset":
 			case "viewport.setTransform":
-				return 4;
+				return "commit";
 			case "ui.applyBackground":
-				return 5;
+				return "ui";
 		}
+	}
+
+	private sortOperationsByPhase(operations: CanvasOperation[]) {
+		return [...operations].sort(
+			(a, b) => this.operationOrder(a) - this.operationOrder(b),
+		);
+	}
+
+	private validateOperations(operations: CanvasOperation[]): RuntimeValidationIssue[] {
+		const issues: RuntimeValidationIssue[] = [];
+		const phaseRank: Record<CanvasOperationPhase, number> = {
+			interaction: 1,
+			preview: 2,
+			commit: 3,
+			ui: 4,
+		};
+		let maxSeen = 0;
+		for (const op of operations) {
+			const phase = this.operationPhase(op);
+			const rank = phaseRank[phase];
+			if (rank < maxSeen) {
+				issues.push({
+					level: "warn",
+					message: `Out-of-order operation phase ${phase} detected; runtime will reorder`,
+					operationType: op.type,
+				});
+			}
+			maxSeen = Math.max(maxSeen, rank);
+		}
+		if (issues.length > 0) {
+			for (const issue of issues) {
+				if (issue.level === "error") {
+					console.error("[CanvasRuntime] op validation", issue);
+				} else {
+					console.warn("[CanvasRuntime] op validation", issue);
+				}
+			}
+		}
+		return issues;
 	}
 
 	private emitChange() {
@@ -339,6 +468,8 @@ export class CanvasRuntime {
 			isPanning: this.state.isPanning,
 			spaceHeld: this.state.spaceHeld,
 			lockout: this.state.lockout,
+			previewElementsById: { ...this.state.previewElementsById },
+			resizeUiById: { ...this.state.resizeUiById },
 		};
 		for (const listener of this.listeners) listener();
 	}

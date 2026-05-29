@@ -6,6 +6,8 @@ import { useCanvasElementCore } from "../canvas-element/useCanvasElementCore";
 export type CanvasElementBaseProps = {
 	element: AnyCanvasElementDisplay;
 	enableResize?: boolean;
+	resizeState?: string;
+	resizeHeading?: "none" | "left" | "right" | "top" | "bottom";
 	frameClassName?: string;
 	surfaceClassName?: string;
 	surfaceStyle?: React.CSSProperties;
@@ -16,6 +18,8 @@ export type CanvasElementBaseProps = {
 export default function CanvasElementBase({
 	element,
 	enableResize = true,
+	resizeState = "none",
+	resizeHeading = "none",
 	frameClassName,
 	surfaceClassName,
 	surfaceStyle,
@@ -27,7 +31,6 @@ export default function CanvasElementBase({
 		isSelected,
 		isMultiSelected,
 		initialTransforms,
-		handlePointerDown,
 	} = useCanvasElementCore(element, { enableResize });
 
 	return (
@@ -41,12 +44,12 @@ export default function CanvasElementBase({
 			id={`canvas-element-${element.id}`}
 			data-canvas-element={element.variant}
 			data-canvas-element-id={element.id}
-			onPointerDown={handlePointerDown}
 			onDragStart={(e) => e.preventDefault()}
 			data-dragging="false"
 			data-selected={isSelected}
 			data-multi-selected={isMultiSelected}
-			data-resizing="none"
+			data-resizing={resizeState}
+			data-resize-heading={resizeHeading}
 			data-element-kind={element.variant}
 			data-element-state="default"
 			style={

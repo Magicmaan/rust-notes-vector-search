@@ -5,9 +5,16 @@ import { ensureDefaultCanvasPluginsRegistered } from "../plugins/register-defaul
 
 type CanvasElementRendererProps = {
 	element: AnyCanvasElementDisplay;
+	runtimeUi?: {
+		resizeState?: string;
+		resizeHeading?: "none" | "left" | "right" | "top" | "bottom";
+	};
 };
 
-export default function CanvasElementRenderer({ element }: CanvasElementRendererProps) {
+export default function CanvasElementRenderer({
+	element,
+	runtimeUi,
+}: CanvasElementRendererProps) {
 	ensureDefaultCanvasPluginsRegistered();
 	const definition = canvasPluginRegistry.getElementDefinition(element.variant);
 	if (!definition) {
@@ -16,5 +23,13 @@ export default function CanvasElementRenderer({ element }: CanvasElementRenderer
 	const tools = canvasPluginRegistry.getUIPlugin(element.variant)?.renderTools?.({
 		element: element as never,
 	});
-	return <>{definition.render({ element: element as never, tools: tools ?? null })}</>;
+	return (
+		<>
+			{definition.render({
+				element: element as never,
+				tools: tools ?? null,
+				runtimeUi,
+			})}
+		</>
+	);
 }

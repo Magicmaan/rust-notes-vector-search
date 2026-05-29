@@ -12,9 +12,14 @@ import { Close as X } from "@project-lary/react-material-symbols-400-rounded";
 type NoteProps = {
 	id?: string;
 	fullscreen: boolean;
+	previewElement?: AnyCanvasElementDisplay;
+	runtimeUi?: {
+		resizeState?: string;
+		resizeHeading?: "none" | "left" | "right" | "top" | "bottom";
+	};
 };
 
-function Note({ id: _id, fullscreen }: NoteProps) {
+function Note({ id: _id, fullscreen, previewElement, runtimeUi }: NoteProps) {
 	const params = useParams();
 	const id = _id || params.id;
 	const selectElement = useCallback(
@@ -36,7 +41,7 @@ function Note({ id: _id, fullscreen }: NoteProps) {
 	}
 
 	if (!fullscreen) {
-		return <CanvasElementRenderer element={elem} />;
+		return <CanvasElementRenderer element={previewElement ?? elem} runtimeUi={runtimeUi} />;
 	}
 	return (
 		<div

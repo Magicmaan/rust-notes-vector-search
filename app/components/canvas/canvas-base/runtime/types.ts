@@ -1,6 +1,8 @@
 import type { AnyCanvasElementDisplay, CanvasElementVariant } from "@/types";
 import type { ExcludeIds } from "@/lib/movement-commit";
 
+export type CanvasRuntimeEventKind = "render";
+
 export type CanvasEventInputKind =
 	| "pointerDown"
 	| "pointerMove"
@@ -37,6 +39,14 @@ export type RuntimeSnapshot = {
 	isPanning: boolean;
 	spaceHeld: boolean;
 	lockout: boolean;
+	previewElementsById: Record<string, AnyCanvasElementDisplay>;
+	resizeUiById: Record<
+		string,
+		{
+			state: string;
+			heading: "none" | "left" | "right" | "top" | "bottom";
+		}
+	>;
 };
 
 export type RuntimeTargetInfo = {
@@ -66,7 +76,11 @@ export type RuntimePorts = {
 		clearSelectedNoteIds: () => void;
 		updateElementsBulk: (elements: AnyCanvasElementDisplay[]) => void;
 		setViewportOffset: (offsetX: number, offsetY: number) => void;
-		setViewportTransform: (zoomLevel: number, offsetX: number, offsetY: number) => void;
+		setViewportTransform: (
+			zoomLevel: number,
+			offsetX: number,
+			offsetY: number,
+		) => void;
 		startPan: () => void;
 		endPan: (commit: boolean) => void;
 	};
@@ -145,6 +159,19 @@ export type CanvasOperation =
 	| { type: "interaction.setSpaceHeld"; value: boolean }
 	| { type: "interaction.setPanning"; value: boolean }
 	| {
+			type: "interaction.beginSession";
+			sessionId: string;
+			kind: "note.drag" | "note.resize";
+	  }
+	| {
+			type: "interaction.updateSession";
+			sessionId: string;
+	  }
+	| {
+			type: "interaction.endSession";
+			sessionId: string;
+	  }
+	| {
 			type: "ui.setMarqueeRect";
 			rect: { x: number; y: number; width: number; height: number } | null;
 	  }
@@ -172,7 +199,33 @@ export type CanvasCallback = (
 	context: FrameContext<InputEventContext>,
 ) => OperationResult;
 
+export type CanvasOperationPhase =
+	| "interaction"
+	| "preview"
+	| "commit"
+	| "ui";
+
+export type RuntimeValidationIssue = {
+	level: "warn" | "error";
+	message: string;
+	operationType?: CanvasOperation["type"];
+};
+
 export type RuntimeExecutionTrace = {
+	timestamp: number;
 	eventKind: CanvasEventInputKind;
-	operations: CanvasOperation[];
+	target: RuntimeTargetInfo;
+	pointer: {
+		screenX: number;
+		screenY: number;
+		worldX: number;
+		worldY: number;
+	};
+	emitted: CanvasOperation[];
+	sorted: Array<{
+		operation: CanvasOperation;
+		phase: CanvasOperationPhase;
+	}>;
+	applied: CanvasOperation[];
+	validation: RuntimeValidationIssue[];
 };

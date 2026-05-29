@@ -1,6 +1,6 @@
 import type { AnyCanvasElementDisplay } from "@/types";
-import { resolveMovementCommit } from "@/lib/movement-commit";
 import { DRAG_THRESHOLD_PX } from "@/lib/drag-config";
+import { resolveMoveCommit } from "../interaction/move";
 import {
 	normalizeRect,
 	pointInsideRect,
@@ -11,39 +11,10 @@ import {
 	createGroupMovableTarget,
 	toGroupMoveBounds,
 } from "../../hooks/marquee/snapshots";
-import type { CanvasCallback, CanvasOperation, FrameContext } from "../types";
+import type { CanvasOperation, FrameContext } from "../types";
 import { PluginBase } from "./types";
 
 const GROUP_SNAP_SEARCH_RADIUS = 20;
-
-type SelectionSession = {
-	active: boolean;
-	pointerId: number;
-	startWorldX: number;
-	startWorldY: number;
-	startScreenX: number;
-	startScreenY: number;
-	startedWithShift: boolean;
-	selectedIdsAtStart: string[];
-	dragging: boolean;
-};
-
-type GroupMoveSession = {
-	active: boolean;
-	pointerId: number;
-	startScreenX: number;
-	startScreenY: number;
-	groupTarget: ReturnType<typeof createGroupMovableTarget> | null;
-};
-
-type MarqueeCallbacks = {
-	onMarqueePointerDown: CanvasCallback;
-	onMarqueePointerMove: CanvasCallback;
-	onMarqueePointerUp: CanvasCallback;
-	onMarqueePointerCancel: CanvasCallback;
-	onMarqueeBlur: CanvasCallback;
-	onMarqueeOutsidePointerDown: CanvasCallback;
-};
 
 function isInsideCanvas(target: EventTarget | null, container: HTMLDivElement) {
 	return Boolean(target && container.contains(target as Node));
@@ -265,7 +236,7 @@ export default class MarqueePlugin extends PluginBase<MarqueePluginState> {
 			const ports = context.ports;
 			const state = ports.read.getState();
 			const [cellWidth, cellHeight] = state.gridSize;
-			const result = resolveMovementCommit({
+			const result = resolveMoveCommit({
 				bounds: {
 					gridX: groupTarget.bounds.gridX,
 					gridY: groupTarget.bounds.gridY,
@@ -578,7 +549,7 @@ export default class MarqueePlugin extends PluginBase<MarqueePluginState> {
 // 			const groupTarget = groupMoveSession.groupTarget;
 // 			const state = useEditorGridStore.getState();
 // 			const [cellWidth, cellHeight] = state.gridSize;
-// 			const result = resolveMovementCommit({
+// 			const result = resolveMoveCommit({
 // 				bounds: {
 // 					gridX: groupTarget.bounds.gridX,
 // 					gridY: groupTarget.bounds.gridY,
